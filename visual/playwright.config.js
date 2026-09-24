@@ -1,5 +1,4 @@
 const { defineConfig } = require('@playwright/test');
-const { requireStagingUrl } = require('../e2e/staging-url');
 
 // 对应原 Backstop misMatchThreshold 0.3（允许 0.3% 像素差异）
 const MAX_DIFF_PIXEL_RATIO = 0.003;
@@ -22,7 +21,7 @@ module.exports = defineConfig({
         ['./flake-metrics-reporter.js', { outputFile: 'visual-retry-metrics.json' }],
     ],
     outputDir: 'test-results',
-    // 基准图在固定 Playwright Linux 镜像中生成，无需带 platform / project 后缀。
+    // 固定路径：始终在 Linux Docker / CI 中跑，无需带 platform / project 后缀
     snapshotPathTemplate: 'snapshots/{arg}{ext}',
     expect: {
         toHaveScreenshot: {
@@ -37,7 +36,7 @@ module.exports = defineConfig({
         },
     },
     use: {
-        baseURL: requireStagingUrl(),
+        baseURL: process.env.VISUAL_BASE_URL || 'http://127.0.0.1:8080',
         browserName: 'chromium',
         headless: true,
         deviceScaleFactor: 1,
@@ -59,7 +58,7 @@ module.exports = defineConfig({
         },
         screenshot: 'off',
         // 失败时保留 trace，playwright show-report 里可逐步回放排查
-        trace: 'retain-on-failure',
+        trace: process.env.CI ? 'off' : 'retain-on-failure',
         video: 'off',
     },
 });

@@ -7,9 +7,8 @@ const {
 } = require('./helpers/preparePage');
 const disableAnimations = require('./helpers/disableAnimations');
 const { fetchBookMedia } = require('./helpers/fetchBookMedia');
-const { requireStagingUrl } = require('../e2e/staging-url');
 
-const BASE_URL = requireStagingUrl().replace(/\/$/, '');
+const BASE_URL = process.env.VISUAL_BASE_URL || 'http://127.0.0.1:8080';
 const scenarios = buildScenarios(BASE_URL);
 
 // main/react/mui/intl/vendor 是初始入口脚本（见 bundle-size.budget.json），文件名固定；
