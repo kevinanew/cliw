@@ -73,7 +73,7 @@ const REQUIRED_CSP_DIRECTIVES = {
 };
 
 console.log(`🚀 [E2E] 正在校验 [${ENV}] 环境的 HTTP 安全响应头...`);
-console.log(`🔗 目标域名: ${new URL(origin).hostname}`);
+console.log('🔗 目标域名由 E2E_BASE_URL 提供');
 
 function checkHeaders(label, url, headers) {
     let ok = true;

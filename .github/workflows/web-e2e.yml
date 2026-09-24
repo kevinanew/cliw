@@ -21,6 +21,7 @@ jobs:
         working-directory: e2e
     env:
       NODE_ENV: staging
+      CSP_MODE: enforce
       GLOSSARY_SAMPLE_SEED: '42'
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +37,11 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - name: Unit tests
         run: pnpm test
+      - name: Mask target host in logs
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+        run: |
+          node -e 'const u = new URL(process.env.E2E_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
       - name: Staging E2E checks
         env:
           E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
@@ -62,6 +68,11 @@ jobs:
           cache-dependency-path: e2e/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
+      - name: Mask target host in logs
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+        run: |
+          node -e 'const u = new URL(process.env.E2E_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
       - name: Lighthouse staging audit
         env:
           E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
