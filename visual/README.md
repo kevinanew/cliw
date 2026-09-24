@@ -1,10 +1,10 @@
 # 已部署网站的视觉回归
 
-这里保存 Playwright 场景与 166 张 Linux Chromium 基准截图。测试访问 `VISUAL_BASE_URL` 指向的 HTTPS 站点；不会检出、安装或构建 `laiwan_io_web` 私有仓库。测试脚本和基准截图位于公开的 `cliw` 仓库中。
+这里保存 Playwright 场景与 Linux Chromium 基准截图。测试访问 `VISUAL_BASE_URL` 指向的 HTTPS 站点；不会检出、安装或构建 `laiwan_io_web` 私有仓库。测试脚本和基准截图位于公开的 `cliw` 仓库 `master` 分支中。首页二维码包含当前部署域名，截图前隐藏其 SVG 图案；二维码是否显示及布局仍由单独断言检查。
 
 ## GitHub Actions
 
-`.github/workflows/web-visual.yml` 使用固定的 `mcr.microsoft.com/playwright:v1.61.1-jammy` 容器和 pnpm 11.13.0。它复用仓库 Secret `E2E_BASE_URL`，此值必须是已部署站点的 HTTPS 根地址。`cliw` 中的视觉测试变更 push、同仓库 PR、每天 20:30 UTC 定时和手动触发时都检查全部三种语言与四种视口。Fork PR 不运行需读取 Secret 的工作流。
+`.github/workflows/web-visual.yml` 使用固定的 `mcr.microsoft.com/playwright:v1.61.1-jammy` 容器和 pnpm 11.13.0。GitHub 当前默认分支是 `main`，但视觉工作流在 `master`；要使每天的定时任务和手动触发生效，需在仓库设置中将默认分支改为 `master`。它复用仓库 Secret `E2E_BASE_URL`，此值必须是已部署站点的 HTTPS 根地址。`cliw` 中的视觉测试变更 push、同仓库 PR、每天 20:30 UTC 定时和手动触发时都检查全部三种语言与四种视口。Fork PR 不运行需读取 Secret 的工作流。
 
 失败时上传 HTML 报告和截图差异，保留 7 天。公开仓库的 Actions 日志和这些 artifact 可被外部读取，所以 CI 禁用 Playwright trace，工作流也不会上传站点的构建产物。报告和截图仍可能展示页面内容；请勿把登录态、私有数据或生产凭据放进测试场景。
 

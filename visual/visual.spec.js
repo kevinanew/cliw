@@ -311,6 +311,13 @@ test.describe('visual regression', () => {
             }
 
             // 先由 helpers 做稳定化，再单次截图对比（避免 toHaveScreenshot 双帧稳定在长页上超时）
+            // 下载地址包含部署域名；二维码图案会随域名变化。保留显示和尺寸断言，
+            // 截图前隐藏二维码 SVG，避免本地基准与部署站点必然不一致。
+            if (scenario.url === `${BASE_URL}/` && viewport.width > 800) {
+                await page.getByTestId('home-qrcode').evaluate((element) => {
+                    element.style.visibility = 'hidden';
+                });
+            }
             const screenshot = await page.screenshot({
                 fullPage,
                 animations: 'disabled',
