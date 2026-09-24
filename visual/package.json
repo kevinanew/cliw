@@ -1,0 +1,31 @@
+{
+    "name": "cliw_visual",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Visual regression tests for the deployed staging website",
+    "scripts": {
+        "test": "pnpm run test:scenarios && pnpm exec playwright test",
+        "test:ci": "pnpm run test",
+        "test:flake-metrics": "node --test flake-metrics-reporter.test.js",
+        "test:scenarios": "jest scenarios.test.ts helpers/preparePage.test.js helpers/fetchBookMedia.test.js"
+    },
+    "engines": {
+        "node": ">=24",
+        "pnpm": ">=11"
+    },
+    "packageManager": "pnpm@11.13.0",
+    "dependencies": {
+        "@playwright/test": "1.61.1",
+        "serve": "14.2.6"
+    },
+    "devDependencies": {
+        "@babel/core": "7.29.7",
+        "@babel/preset-env": "7.29.7",
+        "@babel/preset-typescript": "7.29.7",
+        "@types/jest": "30.0.0",
+        "babel-jest": "30.4.1",
+        "jest": "30.4.2",
+        "typescript": "5.9.3",
+        "yaml": "2.9.0"
+    }
+}

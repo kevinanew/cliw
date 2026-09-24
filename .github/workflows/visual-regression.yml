@@ -1,0 +1,80 @@
+name: Visual regression (all locales and viewports)
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - visual/**
+      - .github/workflows/visual-regression.yml
+  pull_request:
+    paths:
+      - visual/**
+      - .github/workflows/visual-regression.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '30 20 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  visual-regression-all-locales-all-viewports:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-jammy
+    env:
+      CI: 'true'
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      VISUAL_LOCALES: all
+      VISUAL_VIEWPORTS: desktop,small-desktop,mobile,pixel-9
+      VISUAL_WORKERS: '1'
+    defaults:
+      run:
+        working-directory: visual
+    steps:
+      - name: Check out visual tests and screenshot baselines
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.13.0 --activate
+
+      - name: Install visual test dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test retry metrics reporter
+        run: pnpm run test:flake-metrics
+
+      - name: Mask target host in logs
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+        run: |
+          node -e 'const u = new URL(process.env.E2E_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
+
+      - name: Compare all screenshots on staging
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+        run: pnpm run test:ci
+
+      - name: Upload failure report, diffs, and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-failure
+          path: |
+            visual/playwright-report/
+            visual/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload retry metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-retry-metrics
+          path: visual/visual-retry-metrics.json
+          if-no-files-found: ignore
+          retention-days: 30
