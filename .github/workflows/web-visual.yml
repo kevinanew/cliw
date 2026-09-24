@@ -20,8 +20,19 @@ permissions:
 jobs:
   visual:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    name: Visual (${{ matrix.locale }})
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - locale: zh
+            filter: ''
+          - locale: zh-TW
+            filter: '^visual regression '
+          - locale: en
+            filter: '^visual regression '
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-jammy
     defaults:
@@ -31,8 +42,9 @@ jobs:
       CI: 'true'
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       VISUAL_BASE_URL: ${{ secrets.E2E_BASE_URL }}
-      VISUAL_LOCALES: all
+      VISUAL_LOCALES: ${{ matrix.locale }}
       VISUAL_VIEWPORTS: desktop,small-desktop,mobile,pixel-9
+      VISUAL_FILTER: ${{ matrix.filter }}
       VISUAL_WORKERS: '1'
     steps:
       - uses: actions/checkout@v4
@@ -49,6 +61,7 @@ jobs:
           node -e 'const u = new URL(process.env.VISUAL_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
       - run: pnpm install --frozen-lockfile
       - name: Check visual scenarios
+        if: matrix.locale == 'zh'
         run: pnpm run test:scenarios && pnpm run test:flake-metrics
       - name: Compare screenshots
         run: pnpm run test:ci
@@ -56,7 +69,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: visual-regression
+          name: visual-regression-${{ matrix.locale }}
           path: |
             visual/playwright-report/
             visual/test-results/
