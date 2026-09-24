@@ -9,7 +9,8 @@
         "e2e:wait": "node wait-for-url.js",
         "e2e:staging": "node -e \"require('./staging-url').requireStagingUrl()\" && NODE_ENV=staging GLOSSARY_SAMPLE_SEED=${GLOSSARY_SAMPLE_SEED:-42} pnpm run e2e:wait && NODE_ENV=staging GLOSSARY_SAMPLE_SEED=${GLOSSARY_SAMPLE_SEED:-42} pnpm run e2e",
         "e2e:production": "NODE_ENV=production GLOSSARY_SAMPLE_SEED=${GLOSSARY_SAMPLE_SEED:-42} pnpm run e2e:wait && NODE_ENV=production GLOSSARY_SAMPLE_SEED=${GLOSSARY_SAMPLE_SEED:-42} pnpm run e2e",
-        "e2e:lhci": "node -e \"require('./staging-url').requireStagingUrl()\" && NODE_ENV=${NODE_ENV:-staging} node lighthouse-ci.js"
+        "e2e:lhci": "node -e \"require('./staging-url').requireStagingUrl()\" && NODE_ENV=${NODE_ENV:-staging} node lighthouse-ci.js",
+        "e2e:functional": "playwright test --config cases/playwright.config.js"
     },
     "packageManager": "pnpm@11.13.0",
     "engines": {
@@ -22,5 +23,8 @@
         "cheerio": "1.1.2",
         "linkinator": "7.6.1",
         "playwright": "1.61.1"
+    },
+    "devDependencies": {
+        "@playwright/test": "1.61.1"
     }
 }
