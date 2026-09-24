@@ -1,0 +1,3 @@
+# https://pnpm.io/settings
+allowBuilds:
+    unrs-resolver: true
