@@ -8,7 +8,7 @@
         "test:flake-metrics": "node --test flake-metrics-reporter.test.js",
         "reference:ci": "node run-visual.js reference",
         "approve:ci": "node run-visual.js approve",
-        "test:scenarios": "jest scenarios.test.ts visual-rotation.test.js helpers/preparePage.test.js helpers/fetchBookMedia.test.js"
+        "test:scenarios": "jest scenarios.test.ts helpers/preparePage.test.js helpers/fetchBookMedia.test.js"
     },
     "engines": {
         "node": ">=24",

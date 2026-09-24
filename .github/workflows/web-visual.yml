@@ -11,15 +11,8 @@ on:
       - 'visual/**'
       - '.github/workflows/web-visual.yml'
   workflow_dispatch:
-    inputs:
-      scope:
-        description: 'Visual matrix to check'
-        type: choice
-        options: [rotation, all]
-        default: rotation
   schedule:
-    - cron: '43 3 * * *'
-    - cron: '11 4 * * 0'
+    - cron: '30 20 * * *'
 
 permissions:
   contents: read
@@ -28,7 +21,7 @@ jobs:
   visual:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 240
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-jammy
     defaults:
@@ -38,6 +31,8 @@ jobs:
       CI: 'true'
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       VISUAL_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      VISUAL_LOCALES: all
+      VISUAL_VIEWPORTS: desktop,small-desktop,mobile,pixel-9
       VISUAL_WORKERS: '1'
     steps:
       - uses: actions/checkout@v4
@@ -55,19 +50,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Check visual scenarios
         run: pnpm run test:scenarios && pnpm run test:flake-metrics
-      - name: Select visual matrix
-        env:
-          VISUAL_SCOPE: ${{ inputs.scope }}
-          CRON_EXPRESSION: ${{ github.event.schedule }}
-        run: |
-          if [ "$VISUAL_SCOPE" = all ] || [ "$CRON_EXPRESSION" = '11 4 * * 0' ]; then
-            echo 'VISUAL_LOCALES=all' >> "$GITHUB_ENV"
-            echo 'VISUAL_VIEWPORTS=desktop,small-desktop,mobile,pixel-9' >> "$GITHUB_ENV"
-          else
-            eval "$(node visual-rotation.js "$GITHUB_RUN_NUMBER")"
-            echo "VISUAL_LOCALES=$VISUAL_LOCALES" >> "$GITHUB_ENV"
-            echo "VISUAL_VIEWPORTS=$VISUAL_VIEWPORTS" >> "$GITHUB_ENV"
-          fi
       - name: Compare screenshots
         run: pnpm run test:ci
       - name: Upload visual differences

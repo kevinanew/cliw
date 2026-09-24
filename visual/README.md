@@ -4,7 +4,7 @@
 
 ## GitHub Actions
 
-`.github/workflows/web-visual.yml` 使用固定的 `mcr.microsoft.com/playwright:v1.61.1-jammy` 容器和 pnpm 11.13.0。它复用仓库 Secret `E2E_BASE_URL`，此值必须是已部署站点的 HTTPS 根地址。`cliw` push、同仓库 PR、每天定时和手动触发时轮换检查一个语言/视口组合；每周日或手动选择 `all` 时检查全部组合。Fork PR 不运行需读取 Secret 的工作流。
+`.github/workflows/web-visual.yml` 使用固定的 `mcr.microsoft.com/playwright:v1.61.1-jammy` 容器和 pnpm 11.13.0。它复用仓库 Secret `E2E_BASE_URL`，此值必须是已部署站点的 HTTPS 根地址。`cliw` 中的视觉测试变更 push、同仓库 PR、每天 20:30 UTC 定时和手动触发时都检查全部三种语言与四种视口。Fork PR 不运行需读取 Secret 的工作流。
 
 失败时上传 HTML 报告和截图差异，保留 7 天。公开仓库的 Actions 日志和这些 artifact 可被外部读取，所以 CI 禁用 Playwright trace，工作流也不会上传站点的构建产物。报告和截图仍可能展示页面内容；请勿把登录态、私有数据或生产凭据放进测试场景。
 
