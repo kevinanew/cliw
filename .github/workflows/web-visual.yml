@@ -26,13 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - locale: zh
-            filter: ''
-          - locale: zh-TW
-            filter: '^visual regression '
-          - locale: en
-            filter: '^visual regression '
+        locale: [zh, zh-TW, en]
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-jammy
     defaults:
@@ -44,7 +38,6 @@ jobs:
       VISUAL_BASE_URL: ${{ secrets.E2E_BASE_URL }}
       VISUAL_LOCALES: ${{ matrix.locale }}
       VISUAL_VIEWPORTS: desktop,small-desktop,mobile,pixel-9
-      VISUAL_FILTER: ${{ matrix.filter }}
       VISUAL_WORKERS: '1'
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +54,6 @@ jobs:
           node -e 'const u = new URL(process.env.VISUAL_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
       - run: pnpm install --frozen-lockfile
       - name: Check visual scenarios
-        if: matrix.locale == 'zh'
         run: pnpm run test:scenarios && pnpm run test:flake-metrics
       - name: Compare screenshots
         run: pnpm run test:ci
