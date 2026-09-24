@@ -1,0 +1,26 @@
+{
+    "name": "cliw_e2e",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Standalone checks for a deployed staging website",
+    "scripts": {
+        "test": "node --test *.test.js",
+        "e2e": "node run-all.js",
+        "e2e:wait": "node wait-for-url.js",
+        "e2e:staging": "node -e \"require('./staging-url').requireStagingUrl()\" && NODE_ENV=staging GLOSSARY_SAMPLE_SEED=${GLOSSARY_SAMPLE_SEED:-42} pnpm run e2e:wait && NODE_ENV=staging GLOSSARY_SAMPLE_SEED=${GLOSSARY_SAMPLE_SEED:-42} pnpm run e2e",
+        "e2e:production": "NODE_ENV=production GLOSSARY_SAMPLE_SEED=${GLOSSARY_SAMPLE_SEED:-42} pnpm run e2e:wait && NODE_ENV=production GLOSSARY_SAMPLE_SEED=${GLOSSARY_SAMPLE_SEED:-42} pnpm run e2e",
+        "e2e:lhci": "node -e \"require('./staging-url').requireStagingUrl()\" && NODE_ENV=${NODE_ENV:-staging} node lighthouse-ci.js"
+    },
+    "packageManager": "pnpm@11.13.0",
+    "engines": {
+        "node": ">=24",
+        "pnpm": ">=11"
+    },
+    "dependencies": {
+        "@axe-core/playwright": "4.12.1",
+        "@lhci/cli": "0.15.1",
+        "cheerio": "1.1.2",
+        "linkinator": "7.6.1",
+        "playwright": "1.61.1"
+    }
+}
