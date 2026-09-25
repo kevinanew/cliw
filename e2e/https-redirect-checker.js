@@ -35,7 +35,7 @@ function redirectMatches(response, expectedLocation) {
 async function readHomepageTargets(httpsOrigin, fetchImpl = fetch) {
     const response = await fetchImpl(makeUrl(httpsOrigin, '/'), { redirect: 'error' });
     if (!response.ok) {
-        throw new Error(`无法读取 HTTPS 首页以定位静态资源与规范域名：HTTP ${response.status}`);
+        throw new Error(`无法读取 HTTPS 首页以定位静态资源：HTTP ${response.status}`);
     }
 
     const $ = cheerio.load(await response.text());
@@ -49,19 +49,7 @@ async function readHomepageTargets(httpsOrigin, fetchImpl = fetch) {
         throw new Error(`首页静态资源不是同源地址：${assetUrl}`);
     }
 
-    const canonicalHref = $('link[rel="canonical"]').attr('href');
-    if (!canonicalHref) {
-        throw new Error('HTTPS 首页缺少 canonical URL，无法确定公开跳转域名');
-    }
-    const canonicalUrl = new URL(canonicalHref);
-    if (canonicalUrl.protocol !== 'https:') {
-        throw new Error(`HTTPS 首页 canonical URL 必须使用 HTTPS：${canonicalHref}`);
-    }
-
-    return {
-        staticAssetPath: `${assetUrl.pathname}${assetUrl.search}`,
-        publicOrigin: canonicalUrl.origin,
-    };
+    return { staticAssetPath: `${assetUrl.pathname}${assetUrl.search}` };
 }
 
 async function assertHttpsRedirect({ label, httpUrl, expectedLocation }) {
@@ -79,37 +67,33 @@ async function assertHttpsRedirect({ label, httpUrl, expectedLocation }) {
     console.log(`✅ ${label} 已永久跳转，并保留路径与查询参数`);
 }
 
-async function assertCanonicalTrailingSlashRedirect({ httpsOrigin, publicOrigin = httpsOrigin, pathname, fetchImpl = fetch }) {
-    const localeQuery = 'lang=en';
-    const redirectQuery = `${localeQuery}&ref=trailing-slash-redirect-check`;
-    const source = makeUrl(httpsOrigin, `${pathname}/?${redirectQuery}`);
-    const expectedLocation = makeUrl(publicOrigin, `${pathname}?${redirectQuery}`);
-    const expectedCanonical = makeUrl(publicOrigin, `${pathname}?${localeQuery}`);
+async function assertTrailingSlashRedirect({ httpsOrigin, pathname, fetchImpl = fetch }) {
+    const query = 'lang=en&ref=trailing-slash-redirect-check';
+    const source = makeUrl(httpsOrigin, `${pathname}/?${query}`);
+    const expectedLocation = `${pathname}?${query}`;
     const response = await fetchImpl(source, { redirect: 'manual' });
     const location = response.headers.get('location');
     console.log(`→ GET ${source} → ${response.status}${location ? ` Location: ${location}` : ''}`);
 
     if (response.status !== 308 || location !== expectedLocation) {
         throw new Error(
-            `${pathname}/ 未直接跳转到 HTTPS 规范 URL：期望 HTTP 308，Location 为 ${expectedLocation}，` +
+            `${pathname}/ 未跳转到同域名的无尾随斜杠路径：期望 HTTP 308，Location 为 ${expectedLocation}，` +
                 `实际 HTTP ${response.status}，Location 为 ${location || '(缺失)'}`,
         );
     }
 
-    const canonicalResponse = await fetchImpl(location, { redirect: 'error' });
-    if (!canonicalResponse.ok) {
-        throw new Error(`${pathname} 规范 URL 未返回成功内容：HTTP ${canonicalResponse.status}`);
+    const destination = new URL(location, source);
+    const destinationResponse = await fetchImpl(destination.toString(), { redirect: 'error' });
+    if (!destinationResponse.ok) {
+        throw new Error(`${pathname} 跳转目标未返回成功内容：HTTP ${destinationResponse.status}`);
     }
 
-    const html = await canonicalResponse.text();
-    const expectedFragments = ['<html lang="en"', `rel="canonical" href="${expectedCanonical}"`];
-    for (const fragment of expectedFragments) {
-        if (!html.includes(fragment)) {
-            throw new Error(`${pathname} 规范 URL 未返回英文 SEO 内容：缺少 ${fragment}`);
-        }
+    const html = await destinationResponse.text();
+    if (!html.includes('<html lang="en"')) {
+        throw new Error(`${pathname} 跳转目标未返回英文页面`);
     }
 
-    console.log(`✅ ${pathname}/ 直达 HTTPS 规范 URL，且英文 canonical 页面返回 HTTP ${canonicalResponse.status}`);
+    console.log(`✅ ${pathname}/ 保留访问域名与查询参数，英文页面返回 HTTP ${destinationResponse.status}`);
 }
 
 async function run() {
@@ -123,7 +107,7 @@ async function run() {
     }
 
     const httpOrigin = httpOriginFor(httpsOrigin);
-    const { staticAssetPath, publicOrigin } = await readHomepageTargets(httpsOrigin);
+    const { staticAssetPath } = await readHomepageTargets(httpsOrigin);
     const checks = [
         { label: '首页', pathAndQuery: '/' },
         { label: '页面路由', pathAndQuery: '/glossary?source=https-redirect-check&lang=zh' },
@@ -139,9 +123,9 @@ async function run() {
             expectedLocation: makeUrl(httpsOrigin, pathAndQuery),
         });
     }
-    console.log('🚀 正在校验核心静态页尾随斜杠直达 HTTPS 规范 URL...');
+    console.log('🚀 正在校验核心静态页尾随斜杠跳转到同域名路径...');
     for (const pathname of TRAILING_SLASH_PATHS) {
-        await assertCanonicalTrailingSlashRedirect({ httpsOrigin, publicOrigin, pathname });
+        await assertTrailingSlashRedirect({ httpsOrigin, pathname });
     }
     console.log('✅ HTTP→HTTPS 重定向检查全部通过。');
 }
@@ -149,7 +133,7 @@ async function run() {
 module.exports = {
     APK_PATH,
     HTTPS_REDIRECT_STATUS_CODES,
-    assertCanonicalTrailingSlashRedirect,
+    assertTrailingSlashRedirect,
     httpOriginFor,
     makeUrl,
     readHomepageTargets,

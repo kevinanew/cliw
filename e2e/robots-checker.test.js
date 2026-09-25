@@ -1,16 +1,15 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { blocksAllCrawlers, allowsIndexing, referencesSitemap, fetchRobotsWithRetry } = require('./robots-checker');
+const { blocksAllCrawlers, allowsIndexing, fetchRobotsWithRetry } = require('./robots-checker');
 
 test('robots 内容断言区分 staging 屏蔽与 production 收录', () => {
     const staging = 'User-agent: *\nDisallow: /\n';
-    const production = 'User-agent: *\nAllow: /\nSitemap: https://www.goplay.appcookies.com/sitemap.xml\n';
+    const production = 'User-agent: *\nAllow: /\n';
 
     assert.equal(blocksAllCrawlers(staging), true);
     assert.equal(allowsIndexing(staging), false);
     assert.equal(allowsIndexing(production), true);
-    assert.equal(referencesSitemap(production), true);
 });
 
 test('robots 请求在短暂网络失败后重试并返回响应', async () => {

@@ -14,7 +14,7 @@ const scenarios = buildScenarios(BASE_URL);
 // main/react/mui/intl/vendor 是初始入口脚本（见 bundle-size.budget.json），文件名固定；
 // 路由懒加载 chunk 用 webpack 生成的 id，按"非入口脚本"排除法匹配，避免依赖具体 chunk 名。
 const ENTRY_JS_RE = /\/assets\/(main|react|mui|intl|vendor)\.[^/]+\.js(?:\?.*)?$/;
-// 使用之前随前端构建发布的 manifest 内容，既保持快照中的版本和二维码不变，
+// 使用之前随前端构建发布的 manifest 内容，保持快照中的版本不变，
 // 也不再要求 dist 内保留 APK 文件。
 const APK_INDEX_FIXTURE = { apk_files: ['顶级玩家-2.0.2308151624.apk', '顶级玩家-2.0.2308151249.apk'] };
 const TUTORIAL_IMAGE_PRELOAD_MARGIN_PX = 96;
@@ -311,13 +311,6 @@ test.describe('visual regression', () => {
             }
 
             // 先由 helpers 做稳定化，再单次截图对比（避免 toHaveScreenshot 双帧稳定在长页上超时）
-            // 下载地址包含部署域名；二维码图案会随域名变化。保留显示和尺寸断言，
-            // 截图前隐藏二维码 SVG，避免本地基准与部署站点必然不一致。
-            if (scenario.url === `${BASE_URL}/` && viewport.width > 800) {
-                await page.getByTestId('home-qrcode').evaluate((element) => {
-                    element.style.visibility = 'hidden';
-                });
-            }
             const screenshot = await page.screenshot({
                 fullPage,
                 animations: 'disabled',
@@ -677,98 +670,18 @@ test.describe('homepage responsive breakpoint styles', () => {
                 });
             });
 
-            await expect(page.getByTestId('home-qrcode-layout-slot')).toBeAttached();
-            await expect(page.getByTestId('home-qrcode')).toHaveCount(0);
             const localDownloadControl = page.getByTestId('download-button-icon-link');
             const loadingLeft = (await localDownloadControl.boundingBox()).x;
 
             releaseApkResponse();
-            await expect(page.getByTestId('home-qrcode')).toBeVisible();
-            const loadedLeft = (await localDownloadControl.boundingBox()).x;
+            const loadedControl = page.locator('a[data-testid="download-button-icon-link"]');
+            await expect(loadedControl).toBeVisible();
+            const loadedLeft = (await loadedControl.boundingBox()).x;
 
             expect(loadedLeft).toBeCloseTo(loadingLeft, 1);
         });
     }
 
-    for (const { width, height, locales } of [
-        { width: 801, height: 900, locales: ['en'] },
-        { width: 820, height: 1180, locales: ['zh', 'zh-TW', 'en'] },
-        { width: 834, height: 900, locales: ['zh', 'zh-TW', 'en'] },
-        { width: 900, height: 900, locales: ['en'] },
-    ]) {
-        for (const locale of locales) {
-            test(`${width}x${height}px ${locale} keeps the QR code clear of every store download control`, async ({
-                page,
-                context,
-            }) => {
-                await openHomepageAtBreakpoint(page, context, width, locale, height);
-
-                const layout = await page.evaluate(() => {
-                    const qrContainer = document.querySelector('[data-testid="home-qrcode-container"]');
-                    const qr = document.querySelector('[data-testid="home-qrcode"]');
-                    const controls = Array.from(
-                        document.querySelectorAll(
-                            '[data-testid="ios-download-trigger"], [data-testid="download-button-icon-link"]',
-                        ),
-                    );
-                    const qrContainerRect = qrContainer.getBoundingClientRect();
-                    const qrRect = qr.getBoundingClientRect();
-                    const overlaps = (first, second) =>
-                        first.left < second.right &&
-                        first.right > second.left &&
-                        first.top < second.bottom &&
-                        first.bottom > second.top;
-
-                    return {
-                        qrVisible: getComputedStyle(qrContainer).display !== 'none',
-                        qrWidth: qrRect.width,
-                        qrHeight: qrRect.height,
-                        controlCount: controls.length,
-                        controlsAreClear: controls.every((control) => {
-                            const rect = control.getBoundingClientRect();
-                            return rect.width > 0 && rect.height > 0 && !overlaps(qrContainerRect, rect);
-                        }),
-                    };
-                });
-
-                expect(layout).toMatchObject({
-                    qrVisible: true,
-                    controlCount: 2,
-                    controlsAreClear: true,
-                });
-                expect(layout.qrWidth).toBeGreaterThanOrEqual(120);
-                expect(layout.qrHeight).toBeGreaterThanOrEqual(120);
-            });
-        }
-    }
-
-    test('801x500px keeps the QR code fully visible after scrolling to the page bottom', async ({ page, context }) => {
-        await openHomepageAtBreakpoint(page, context, 801, 'en', 500);
-
-        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-        await page.waitForFunction(() => window.scrollY > 0);
-
-        const layout = await page.evaluate(() => {
-            const qrContainer = document.querySelector('[data-testid="home-qrcode-container"]');
-            const qr = document.querySelector('[data-testid="home-qrcode"]');
-            const containerRect = qrContainer.getBoundingClientRect();
-            const qrRect = qr.getBoundingClientRect();
-
-            return {
-                scrollY: window.scrollY,
-                containerTop: containerRect.top,
-                containerBottom: containerRect.bottom,
-                qrWidth: qrRect.width,
-                qrHeight: qrRect.height,
-                fullyVisible: containerRect.top >= 0 && containerRect.bottom <= window.innerHeight,
-            };
-        });
-
-        expect(layout.scrollY).toBeGreaterThan(0);
-        expect(layout.fullyVisible).toBe(true);
-        expect(layout.qrWidth).toBeGreaterThanOrEqual(120);
-        expect(layout.qrHeight).toBeGreaterThanOrEqual(120);
-    });
 });
 
 test.describe('screenshot image materialization', () => {

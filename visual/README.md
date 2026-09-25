@@ -1,6 +1,6 @@
 # 已部署网站的视觉回归
 
-这里保存 Playwright 场景与 Linux Chromium 基准截图。测试访问 `VISUAL_BASE_URL` 指向的 HTTPS 站点；不会检出、安装或构建 `laiwan_io_web` 私有仓库。测试脚本和基准截图位于公开的 `cliw` 仓库 `master` 分支中。首页二维码包含当前部署域名，截图前隐藏其 SVG 图案；二维码是否显示及布局仍由单独断言检查。
+这里保存 Playwright 场景与 Linux Chromium 基准截图。测试访问 `VISUAL_BASE_URL` 指向的 HTTPS 站点；不会检出、安装或构建 `laiwan_io_web` 私有仓库。测试脚本和基准截图位于公开的 `cliw` 仓库 `master` 分支中。首页下载入口的视觉基准需随站点实际布局更新。
 
 ## 检查范围
 

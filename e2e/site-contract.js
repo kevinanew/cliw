@@ -1,6 +1,4 @@
-// 与被测站点当前发布的 sitemap 和 SEO 契约保持一致。
-const SITE_ORIGIN = 'https://www.goplay.appcookies.com';
-const SEO_LOCALES = ['zh', 'zh-TW', 'en'];
+// 与被测站点的公开页面路径保持一致。
 const STATIC_PATHS = [
     '/',
     '/glossary',
@@ -10,8 +8,4 @@ const STATIC_PATHS = [
     '/h5-tutorial/laiwanpai-com',
 ];
 
-function buildStaticPageUrls(paths, locales = SEO_LOCALES, origin = SITE_ORIGIN) {
-    return paths.flatMap((pathname) => locales.map((locale) => `${origin}${pathname}?lang=${encodeURIComponent(locale)}`));
-}
-
-module.exports = { SITE_ORIGIN, SEO_LOCALES, STATIC_PATHS, buildStaticPageUrls };
+module.exports = { STATIC_PATHS };

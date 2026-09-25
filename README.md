@@ -15,7 +15,9 @@ E2E_BASE_URL="$TARGET_URL" pnpm run e2e:staging
 E2E_BASE_URL="$TARGET_URL" pnpm run e2e:lhci
 ```
 
-`E2E_BASE_URL` 必须是 HTTPS 站点根地址。`pnpm test` 运行检查器的单元测试；`e2e:staging` 等待目标站点可访问，然后运行页面、链接、语言、SEO、安全响应头、资源与速度检查；`e2e:lhci` 审计 `/learning` 和 `/glossary` 的移动端性能。术语 slug 对照表保存在 `e2e/fixtures/`，站点内容变更时需同步更新。
+`E2E_BASE_URL` 必须是 HTTPS 站点根地址。`pnpm test` 运行检查器的单元测试；`e2e:staging` 等待目标站点可访问，然后运行页面、链接、语言、标题与描述、安全响应头、资源与速度检查；`e2e:lhci` 审计 `/learning` 和 `/glossary` 的移动端性能。术语 slug 对照表保存在 `e2e/fixtures/`，站点内容变更时需同步更新。
+
+站点通过反向代理由多个域名提供服务，因此测试不要求页面输出固定域名的 canonical、`og:url`、hreflang、分享图片或 sitemap。语言检查继续验证地址栏、cookie 和页面语言；HTTPS 检查验证尾随斜杠跳转保留当前访问域名。
 
 ## 探索与功能案例
 

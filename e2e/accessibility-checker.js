@@ -11,7 +11,7 @@ const { assertPageMounted } = require('./assert-page-mounted');
 const { ENV, URLS } = require('./env');
 const { STATIC_PATHS } = require('./site-contract');
 
-/** 与 sitemap 静态页对齐的关键页面 */
+/** 需要检查无障碍的关键页面 */
 const A11Y_PATHS = [...STATIC_PATHS, '/glossary/en/bluff'];
 
 /** WCAG 2 / 2.1 Level A + AA */

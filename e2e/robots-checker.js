@@ -30,10 +30,6 @@ function allowsIndexing(body) {
     return /^Allow:\s*\/\s*$/m.test(body) && !blocksAllCrawlers(body);
 }
 
-function referencesSitemap(body) {
-    return /^Sitemap:\s*https:\/\/www\.goplay\.appcookies\.com\/sitemap\.xml\s*$/m.test(body);
-}
-
 function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -109,16 +105,12 @@ async function run() {
     }
 
     if (ENV === 'production') {
-        if (allowsIndexing(body) && referencesSitemap(body)) {
-            console.log('✅ [成功] production 已允许搜索引擎收录 (Allow: /) 并声明 sitemap.xml');
+        if (allowsIndexing(body)) {
+            console.log('✅ [成功] production 已允许搜索引擎收录 (Allow: /)');
             process.exit(0);
         }
 
-        if (allowsIndexing(body) && !referencesSitemap(body)) {
-            console.error(
-                '❌ [失败] production robots.txt 应包含 "Sitemap: https://www.goplay.appcookies.com/sitemap.xml"',
-            );
-        } else if (blocksAllCrawlers(body)) {
+        if (blocksAllCrawlers(body)) {
             console.error('❌ [失败] production 不应包含 "Disallow: /"，否则会阻止官网被搜索引擎收录');
         } else {
             console.error('❌ [失败] production 应包含 "Allow: /" 以明确允许搜索引擎收录');
@@ -139,7 +131,6 @@ if (require.main === module) {
 module.exports = {
     blocksAllCrawlers,
     allowsIndexing,
-    referencesSitemap,
     fetchWithTimeout,
     fetchRobotsWithRetry,
 };

@@ -16,10 +16,10 @@ const glossarySlugMap = require('./fixtures/glossarySlugMap.generated.json');
  *   5. 确认 cookie 写入 language=zh-TW，UI 为繁体文案
  *   6. 刷新页面后仍为 zh-TW
  *   7. 打开必测词条详情页，切换 EN / 繁中后 URL 变为对照 locale+slug，刷新后仍保持
- *   8. 全新 context、无 cookie，访问 /?lang=en 与 /?lang=zh-TW（hreflang/分享深链落地）
- *   9. 首页点击 zh / zh-TW / en 后，地址栏、canonical、og:url 均同步为对应 ?lang=
+ *   8. 全新 context、无 cookie，访问 /?lang=en 与 /?lang=zh-TW（分享深链落地）
+ *   9. 首页点击 zh / zh-TW / en 后，地址栏同步为对应 ?lang=
  *  10. 切换英文后跨页导航仍携带 lang，复制该 URL 到全新 context 可恢复英文
- *  11. 教程页真实点击三种语言按钮时保留 pathname、其他参数、hash 与 SEO
+ *  11. 教程页真实点击三种语言按钮时保留 pathname、其他参数和 hash
  *
  * 单测 localizationContext.test.tsx / localeCookie.test.ts / useLanguageSwitcher.test.tsx
  * 已分别覆盖 cookie、对照 slug 导航与 ?lang= 初始化，但未串联真实浏览器与刷新后的持久化。
@@ -33,8 +33,6 @@ const URLS = {
 };
 
 const baseUrl = URLS[ENV];
-// 本地开发主机不属于公开部署域名，documentHead 会按既有契约回退生产站点 canonical。
-const seoOrigin = ENV === 'development' ? new URL(URLS.production).origin : baseUrl && new URL(baseUrl).origin;
 
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 };
 const LANGUAGE_COOKIE_KEY = 'language';
@@ -82,38 +80,9 @@ function buildMissingEnglishAlternateSourcePath(term, slugMap = glossarySlugMap)
     return buildGlossaryDefinitionPath('zh', term);
 }
 
-async function assertLanguageUrlAndSeo(page, locale) {
+async function assertLanguageUrl(page, locale) {
     const expectedUrl = new URL(`?lang=${locale}`, baseUrl).href;
-    const expectedSeoUrl = new URL(`?lang=${locale}`, `${seoOrigin}/`).href;
-    const actualUrl = page.url();
-    if (actualUrl !== expectedUrl) {
-        throw new Error(`地址栏期望 ${expectedUrl}，实际 ${actualUrl}`);
-    }
-
-    await page.waitForFunction(
-        (expected) => {
-            const canonical = document.querySelector('link[rel="canonical"]')?.href;
-            const ogUrl = document.querySelector('meta[property="og:url"]')?.getAttribute('content');
-            const selfAlternate = document.querySelector(
-                `link[rel="alternate"][hreflang="${document.documentElement.lang}"]`,
-            )?.href;
-            return canonical === expected && ogUrl === expected && selfAlternate === expected;
-        },
-        expectedSeoUrl,
-        { timeout: 15000 },
-    );
-
-    const seo = await page.evaluate(() => ({
-        canonical: document.querySelector('link[rel="canonical"]')?.href,
-        ogUrl: document.querySelector('meta[property="og:url"]')?.getAttribute('content'),
-        selfAlternate: document.querySelector(`link[rel="alternate"][hreflang="${document.documentElement.lang}"]`)
-            ?.href,
-    }));
-    if (seo.canonical !== expectedSeoUrl || seo.ogUrl !== expectedSeoUrl || seo.selfAlternate !== expectedSeoUrl) {
-        throw new Error(
-            `SEO URL 未同步：canonical=${seo.canonical}，og:url=${seo.ogUrl}，hreflang=${seo.selfAlternate}`,
-        );
-    }
+    await page.waitForFunction((expected) => window.location.href === expected, expectedUrl, { timeout: 15000 });
 }
 
 /**
@@ -175,7 +144,7 @@ async function assertGlossarySlugSwitch(page, nextLocale) {
 
 /**
  * 全新 context、无 cookie：访问 /?lang= 深链，断言 UI / document.lang / cookie。
- * 覆盖 hreflang 与分享链接的真实落地路径（非点击切换）。
+ * 覆盖分享链接的真实落地路径（非点击切换）。
  * @param {import('playwright').Browser} browser
  * @param {string} lang
  * @param {{ homeLinkText?: string }} [opts]
@@ -331,15 +300,6 @@ async function runGlossaryMissingAlternateCheck(browser, page) {
     const expectedUrl = new URL('/glossary?ref=nav&lang=en#section', baseUrl).toString();
     await page.waitForFunction((expected) => window.location.href === expected, expectedUrl, { timeout: 15000 });
 
-    const expectedSeoUrl = new URL('/glossary?lang=en', seoOrigin).toString();
-    await page.waitForFunction(
-        (expected) =>
-            document.querySelector('link[rel="canonical"]')?.href === expected &&
-            document.querySelector('meta[property="og:url"]')?.getAttribute('content') === expected,
-        expectedSeoUrl,
-        { timeout: 15000 },
-    );
-
     await page.reload({ waitUntil: 'load', timeout: 60000 });
     await page.waitForSelector('[data-testid="language-select"]', { timeout: 30000 });
     await page.waitForFunction(
@@ -366,7 +326,7 @@ async function runGlossaryMissingAlternateCheck(browser, page) {
         await freshContext.close();
     }
 
-    console.log('   无对照 slug: 参数/hash、SEO、刷新与全新 context 均正确');
+    console.log('   无对照 slug: 参数/hash、刷新与全新 context 均正确');
     return 0;
 }
 
@@ -383,19 +343,10 @@ async function runCrossPageLanguageCheck(browser, page) {
     await page.locator('[data-testid="navbar-link-navbar_terminology_list"]').click();
 
     const expectedUrl = new URL('/glossary?lang=en', baseUrl).toString();
-    const expectedSeoUrl = new URL('/glossary?lang=en', seoOrigin).toString();
     try {
-        await page.waitForFunction(
-            ({ url, seoUrl }) =>
-                window.location.href === url &&
-                document.querySelector('link[rel="canonical"]')?.href === seoUrl &&
-                document.querySelector('meta[property="og:url"]')?.getAttribute('content') === seoUrl &&
-                document.querySelector('link[rel="alternate"][hreflang="en"]')?.href === seoUrl,
-            { url: expectedUrl, seoUrl: expectedSeoUrl },
-            { timeout: 15000 },
-        );
+        await page.waitForFunction((expected) => window.location.href === expected, expectedUrl, { timeout: 15000 });
     } catch {
-        console.error(`❌ [跨页语言 URL] 期望 ${expectedUrl} 且 SEO 同步，实际: ${page.url()}`);
+        console.error(`❌ [跨页语言 URL] 期望 ${expectedUrl}，实际: ${page.url()}`);
         return 1;
     }
 
@@ -429,26 +380,21 @@ async function runTutorialLanguageChecks(page) {
     for (const locale of ['zh-TW', 'en', 'zh']) {
         await page.locator(`[data-testid="language-option-${locale}"]`).first().click();
         const expectedUrl = new URL(`/tutorial?ref=nav&lang=${locale}#step-one`, baseUrl).toString();
-        const expectedSeoUrl = new URL(`/tutorial?lang=${locale}`, seoOrigin).toString();
         try {
             await page.waitForFunction(
-                ({ lang, url, seoUrl }) =>
+                ({ lang, url }) =>
                     document.querySelector(`[data-testid="language-option-${lang}"]`)?.getAttribute('aria-pressed') ===
-                        'true' &&
-                    window.location.href === url &&
-                    document.querySelector('link[rel="canonical"]')?.href === seoUrl &&
-                    document.querySelector('meta[property="og:url"]')?.getAttribute('content') === seoUrl &&
-                    document.querySelector(`link[rel="alternate"][hreflang="${lang}"]`)?.href === seoUrl,
-                { lang: locale, url: expectedUrl, seoUrl: expectedSeoUrl },
+                        'true' && window.location.href === url,
+                { lang: locale, url: expectedUrl },
                 { timeout: 15000 },
             );
         } catch {
-            console.error(`❌ [教程页语言切换] ${locale} 未保持路由/参数/hash 或 SEO: ${page.url()}`);
+            console.error(`❌ [教程页语言切换] ${locale} 未保持路由、参数或 hash: ${page.url()}`);
             return 1;
         }
     }
 
-    console.log('   教程页 zh-TW / en / zh 均可真实点击并保持深链与 SEO');
+    console.log('   教程页 zh-TW / en / zh 均可真实点击并保持深链');
     return 0;
 }
 
@@ -495,12 +441,12 @@ async function checkInitialHomeState({ context, page }) {
     return issues;
 }
 
-async function reportSeoIssue(page, locale, phase) {
+async function reportUrlIssue(page, locale, phase) {
     try {
-        await assertLanguageUrlAndSeo(page, locale);
+        await assertLanguageUrl(page, locale);
         return 0;
     } catch (e) {
-        console.error(`❌ [URL / SEO 同步] ${phase} ${e.message}`);
+        console.error(`❌ [URL 同步] ${phase} ${e.message}`);
         return 1;
     }
 }
@@ -530,7 +476,7 @@ async function clickEnglishAndCheck({ context, page }) {
         state.docLang !== 'en',
         `❌ [document.lang] 点击 EN 后期望 <html lang="en">，实际: ${state.docLang}`,
     );
-    issues += await reportSeoIssue(page, 'en', '点击 EN 后');
+    issues += await reportUrlIssue(page, 'en', '点击 EN 后');
     if (issues === 0) console.log('   点击 EN 后: UI 切换为英文，cookie=language=en');
     return issues;
 }
@@ -567,7 +513,7 @@ async function clickTraditionalChineseAndCheck({ context, page }) {
         state.docLang !== 'zh-TW',
         `❌ [document.lang] 点击 zh-TW 后期望 <html lang="zh-TW">，实际: ${state.docLang}`,
     );
-    issues += await reportSeoIssue(page, 'zh-TW', '点击 zh-TW 后');
+    issues += await reportUrlIssue(page, 'zh-TW', '点击 zh-TW 后');
     if (issues === 0) console.log('   点击 zh-TW 后: UI 切换为繁体，cookie=language=zh-TW');
     return issues;
 }
@@ -579,16 +525,16 @@ async function reloadTraditionalAndSwitchToChinese({ context, page }) {
     const state = await getActiveLocale(page);
     const cookie = await getLanguageCookie(context);
     let issues = validateZhTWState(state, cookie, '持久化');
-    console.log('🔎 正在点击 zh 切换按钮，验证简中 URL / SEO 同步...');
+    console.log('🔎 正在点击 zh 切换按钮，验证简中 URL 同步...');
     await page.locator('[data-testid="language-option-zh"]').first().click();
     try {
         await page.waitForFunction(
             () => document.querySelector('[data-testid="language-option-zh"]')?.getAttribute('aria-pressed') === 'true',
             { timeout: 15000 },
         );
-        await assertLanguageUrlAndSeo(page, 'zh');
+        await assertLanguageUrl(page, 'zh');
     } catch (e) {
-        console.error(`❌ [URL / SEO 同步] 点击 zh 后 ${e.message}`);
+        console.error(`❌ [URL 同步] 点击 zh 后 ${e.message}`);
         issues++;
     }
     if (issues === 0) console.log('   刷新后: 仍为繁体，cookie 持久化生效');
@@ -661,7 +607,7 @@ async function run(dependencyOverrides = {}) {
         if (issues === 0) issues = await runMainContextStages(browser, deps);
         if (issues === 0) {
             console.log(
-                '✅ [成功] 语言切换端到端流程通过：?lang= 深链落地；三种语言 URL/SEO 同步；词条页对照 slug 与无对照降级均保持可分享 URL',
+                '✅ [成功] 语言切换端到端流程通过：?lang= 深链落地；三种语言 URL 同步；词条页对照 slug 与无对照降级均保持可分享 URL',
             );
         }
     } catch (e) {

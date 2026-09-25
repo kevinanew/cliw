@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const {
     APK_PATH,
     HTTPS_REDIRECT_STATUS_CODES,
-    assertCanonicalTrailingSlashRedirect,
+    assertTrailingSlashRedirect,
     httpOriginFor,
     makeUrl,
     readHomepageTargets,
@@ -42,73 +42,42 @@ describe('https-redirect-checker helpers', () => {
         assert.equal(HTTPS_REDIRECT_STATUS_CODES.has(308), true);
     });
 
-    it('从首页 canonical 读取公开跳转域名，并保留源站静态资源地址', async () => {
+    it('从首页读取同源静态资源地址', async () => {
         const httpsOrigin = 'https://source.example.test';
         const fetchImpl = async (url, options) => {
             assert.equal(url, `${httpsOrigin}/`);
             assert.deepEqual(options, { redirect: 'error' });
             return {
                 ok: true,
-                text: async () =>
-                    '<html><head><link rel="canonical" href="https://public.example.test/?lang=zh"></head>' +
-                    '<body><script src="/static/app.js?v=1"></script></body></html>',
+                text: async () => '<html><body><script src="/static/app.js?v=1"></script></body></html>',
             };
         };
 
         assert.deepEqual(await readHomepageTargets(httpsOrigin, fetchImpl), {
             staticAssetPath: '/static/app.js?v=1',
-            publicOrigin: 'https://public.example.test',
         });
     });
 
-    it('首页 canonical 缺失或不是 HTTPS 时拒绝推断公开域名', async () => {
-        const fetchImpl = (canonical) => async () => ({
-            ok: true,
-            text: async () => `<script src="/app.js"></script>${canonical}`,
-        });
-        await assert.rejects(
-            readHomepageTargets('https://source.example.test', fetchImpl('')),
-            /缺少 canonical URL/,
-        );
-        await assert.rejects(
-            readHomepageTargets(
-                'https://source.example.test',
-                fetchImpl('<link rel="canonical" href="http://public.example.test/">'),
-            ),
-            /必须使用 HTTPS/,
-        );
-    });
-
-    it('尾随斜杠重定向保留全部查询参数，但 canonical 只保留语言参数', async () => {
+    it('尾随斜杠跳转保留访问域名和全部查询参数', async () => {
         const httpsOrigin = 'https://staging.example.test';
-        const publicOrigin = 'https://public.example.test';
-        const redirectedUrl = `${publicOrigin}/tutorial?lang=en&ref=trailing-slash-redirect-check`;
+        const location = '/tutorial?lang=en&ref=trailing-slash-redirect-check';
         const requests = [];
         const fetchImpl = async (url, options) => {
             requests.push({ url, options });
             if (requests.length === 1) {
-                return {
-                    status: 308,
-                    headers: new Headers({ location: redirectedUrl }),
-                };
+                return { status: 308, headers: new Headers({ location }) };
             }
-            return {
-                ok: true,
-                status: 200,
-                text: async () =>
-                    `<html lang="en"><head><link rel="canonical" href="${publicOrigin}/tutorial?lang=en"></head></html>`,
-            };
+            return { ok: true, status: 200, text: async () => '<html lang="en"></html>' };
         };
 
-        await assertCanonicalTrailingSlashRedirect({ httpsOrigin, publicOrigin, pathname: '/tutorial', fetchImpl });
+        await assertTrailingSlashRedirect({ httpsOrigin, pathname: '/tutorial', fetchImpl });
 
         assert.deepEqual(requests, [
             {
                 url: `${httpsOrigin}/tutorial/?lang=en&ref=trailing-slash-redirect-check`,
                 options: { redirect: 'manual' },
             },
-            { url: redirectedUrl, options: { redirect: 'error' } },
+            { url: `${httpsOrigin}${location}`, options: { redirect: 'error' } },
         ]);
     });
-
 });
