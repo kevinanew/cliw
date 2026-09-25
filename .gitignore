@@ -4,3 +4,6 @@ visual/test-results/
 visual/playwright-report/
 visual/blob-report/
 visual/visual-retry-metrics.json
+
+# ttyctl local runtime data (agent-writable)
+.ttyctl/
