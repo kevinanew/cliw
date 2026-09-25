@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('GLOSSARY-005: 相关主题入口', async ({ page }) => {
     await test.step('准备 A-Game 详情', async () => {
-        await page.goto('/glossary/en/agame?lang=en');
+        await page.goto('/glossary/en/agame?lang=en', { waitUntil: 'domcontentloaded' });
         await expect(page.getByTestId('definition-term-name')).toHaveText('A-Game');
         await expect(page.getByTestId('related-topics')).toHaveCount(1);
     });

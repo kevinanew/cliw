@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('HOME-001: 首页导航进入术语表', async ({ page }, testInfo) => {
     await test.step('准备英文首页', async () => {
-        await page.goto('/?lang=en');
+        await page.goto('/?lang=en', { waitUntil: 'domcontentloaded' });
         await expect(page.getByTestId('home-title')).toHaveCount(1);
     });
     await test.step('操作导航入口', async () => {

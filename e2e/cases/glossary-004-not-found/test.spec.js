@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('GLOSSARY-004: 无效术语显示返回入口', async ({ page }) => {
     await test.step('打开不存在的英文术语', async () => {
-        await page.goto('/glossary/en/does-not-exist-999?lang=en');
+        await page.goto('/glossary/en/does-not-exist-999?lang=en', { waitUntil: 'domcontentloaded' });
     });
     await test.step('断言错误反馈', async () => {
         const message = page.getByTestId('definition-not-found');

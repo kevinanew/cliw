@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('GLOSSARY-003: 术语详情与返回列表', async ({ page }) => {
     await test.step('准备英文术语表', async () => {
-        await page.goto('/glossary?lang=en');
+        await page.goto('/glossary?lang=en', { waitUntil: 'domcontentloaded' });
         await expect(page.getByTestId('glossary-term-agame')).toHaveCount(1);
     });
     await test.step('打开 A-Game 详情', async () => {

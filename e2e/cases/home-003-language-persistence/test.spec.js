@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test('HOME-003: 切换语言后刷新保持', async ({ page }, testInfo) => {
     let englishOption;
     await test.step('准备中文首页', async () => {
-        await page.goto('/?lang=zh');
+        await page.goto('/?lang=zh', { waitUntil: 'domcontentloaded' });
         if (testInfo.project.name === 'mobile') {
             const menu = page.getByTestId('navbar-mobile-menu-button');
             await expect(menu).toHaveCount(1);
@@ -25,7 +25,7 @@ test('HOME-003: 切换语言后刷新保持', async ({ page }, testInfo) => {
         }
     });
     await test.step('刷新并断言语言保持', async () => {
-        await page.reload();
+        await page.reload({ waitUntil: 'domcontentloaded' });
         if (testInfo.project.name === 'mobile') {
             const menu = page.getByTestId('navbar-mobile-menu-button');
             await expect(menu).toHaveCount(1);

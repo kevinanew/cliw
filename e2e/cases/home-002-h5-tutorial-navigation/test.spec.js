@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test('HOME-002: 首页安装教程入口', async ({ page }) => {
     await test.step('准备英文首页', async () => {
-        await page.goto('/?lang=en');
+        await page.goto('/?lang=en', { waitUntil: 'domcontentloaded' });
         await expect(page.getByTestId('home-title')).toHaveCount(1);
     });
     await test.step('操作第一组添加至桌面入口', async () => {
