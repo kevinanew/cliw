@@ -80,7 +80,10 @@ describe('TypeScript 文件长度门禁', () => {
     });
 
     it('文件不能用作项目目录', () => {
-        const result = runChecker('--project-dir', 'package.json');
+        const directory = createFixtureDirectory();
+        const file = path.join(directory, 'project.txt');
+        fs.writeFileSync(file, '普通文件');
+        const result = runChecker('--project-dir', projectArgument(file));
 
         assert.equal(result.status, 2, result.stderr || result.stdout);
         assert.match(result.stderr, /--project-dir 必须指向目录/);
