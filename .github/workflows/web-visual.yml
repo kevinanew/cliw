@@ -3,14 +3,8 @@ name: Web visual regression
 on:
   push:
     branches: [master]
-    paths:
-      - 'visual/**'
-      - '.github/workflows/web-visual.yml'
   pull_request:
     branches: [master]
-    paths:
-      - 'visual/**'
-      - '.github/workflows/web-visual.yml'
   workflow_dispatch:
   schedule:
     - cron: '30 20 * * *'
