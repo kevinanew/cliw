@@ -24,9 +24,5 @@
 | 业务目标 | data-testid | 状态 |
 | --- | --- | --- |
 | 相关主题区域 | `related-topics` | 已确认 |
-| Z-game 链接 | `definition-related-topic-zgame` | 缺失；建议 ID 待落实 |
+| Z-game 链接 | `related-topics` 内名称为 `Z-game` 的链接 | 已确认 |
 | 详情名称 | `definition-term-name` | 已确认 |
-
-## 关联问题
-
-ISSUE-003：相关主题链接缺少测试定位契约。

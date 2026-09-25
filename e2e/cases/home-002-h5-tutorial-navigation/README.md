@@ -23,8 +23,5 @@
 
 | 业务目标 | data-testid | 状态 |
 | --- | --- | --- |
-| 本案例涉及的目标 | `home-h5-tutorial-link-laiwan-life；h5-tutorial-url-link-0` | 前者缺失，后者已确认 |
-
-## 关联问题
-
-ISSUE-002；建议 ID 待站点源码落实、部署后复测。
+| 第一组安装教程入口 | 指向 `/h5-tutorial/laiwan-life` 的链接 | 已确认 |
+| 教程链接 | `h5-tutorial-url-link-0` | 已确认 |
