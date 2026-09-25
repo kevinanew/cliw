@@ -7,8 +7,8 @@ module.exports = defineConfig({
     testDir: '.',
     testMatch: 'visual.spec.js',
     fullyParallel: true,
-    // 桌面长页全页截图会占用大量 Chromium 渲染内存；Docker 中并行两个
-    // worker 会随机触发 renderer crash。默认串行，资源充足时仍可显式提高。
+    // CI 服务器内存足够时，通过 VISUAL_WORKERS 并行运行截图场景。
+    // 本地默认只启用一个 worker，避免占用过多内存。
     workers: Number(process.env.VISUAL_WORKERS || 1),
     forbidOnly: Boolean(process.env.CI) || Boolean(process.env.WOODPECKER_CI),
     // 截图类偶发失败自动重试一次（可用 VISUAL_RETRIES=0 关闭）

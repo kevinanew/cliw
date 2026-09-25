@@ -39,7 +39,7 @@ jobs:
       VISUAL_BASE_URL: ${{ secrets.E2E_BASE_URL }}
       VISUAL_LOCALES: ${{ matrix.locale }}
       VISUAL_VIEWPORTS: desktop,small-desktop,mobile,pixel-9
-      VISUAL_WORKERS: '1'
+      VISUAL_WORKERS: '4'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
