@@ -2,11 +2,12 @@ name: Web visual regression
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
     paths:
       - 'visual/**'
       - '.github/workflows/web-visual.yml'
   pull_request:
+    branches: [master]
     paths:
       - 'visual/**'
       - '.github/workflows/web-visual.yml'
@@ -20,8 +21,13 @@ permissions:
 jobs:
   visual:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    name: Visual (${{ matrix.locale }})
     runs-on: ubuntu-latest
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        locale: [zh, zh-TW, en]
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-jammy
     defaults:
@@ -31,7 +37,7 @@ jobs:
       CI: 'true'
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       VISUAL_BASE_URL: ${{ secrets.E2E_BASE_URL }}
-      VISUAL_LOCALES: all
+      VISUAL_LOCALES: ${{ matrix.locale }}
       VISUAL_VIEWPORTS: desktop,small-desktop,mobile,pixel-9
       VISUAL_WORKERS: '1'
     steps:
@@ -56,7 +62,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: visual-regression
+          name: visual-regression-${{ matrix.locale }}
           path: |
             visual/playwright-report/
             visual/test-results/
