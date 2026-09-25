@@ -8,6 +8,7 @@
  * 不会被跟随到业务正文。
  */
 
+const cheerio = require('cheerio');
 const { ENV, URLS } = require('./env');
 
 const HTTPS_REDIRECT_STATUS_CODES = new Set([301, 308]);
@@ -31,23 +32,36 @@ function redirectMatches(response, expectedLocation) {
     return HTTPS_REDIRECT_STATUS_CODES.has(response.status) && response.headers.get('location') === expectedLocation;
 }
 
-async function findStaticAssetPath(httpsOrigin) {
-    const response = await fetch(makeUrl(httpsOrigin, '/'), { redirect: 'error' });
+async function readHomepageTargets(httpsOrigin, fetchImpl = fetch) {
+    const response = await fetchImpl(makeUrl(httpsOrigin, '/'), { redirect: 'error' });
     if (!response.ok) {
-        throw new Error(`无法读取 HTTPS 首页以定位静态资源：HTTP ${response.status}`);
+        throw new Error(`无法读取 HTTPS 首页以定位静态资源与规范域名：HTTP ${response.status}`);
     }
 
-    const html = await response.text();
-    const match = html.match(/<script[^>]+src=["']([^"']+\.js(?:\?[^"']*)?)["']/i);
-    if (!match) {
+    const $ = cheerio.load(await response.text());
+    const scriptPath = $('script[src$=".js"], script[src*=".js?"]').first().attr('src');
+    if (!scriptPath) {
         throw new Error('未能从 HTTPS 首页解析到 JavaScript 静态资源');
     }
 
-    const assetUrl = new URL(match[1], httpsOrigin);
+    const assetUrl = new URL(scriptPath, httpsOrigin);
     if (assetUrl.origin !== new URL(httpsOrigin).origin) {
         throw new Error(`首页静态资源不是同源地址：${assetUrl}`);
     }
-    return `${assetUrl.pathname}${assetUrl.search}`;
+
+    const canonicalHref = $('link[rel="canonical"]').attr('href');
+    if (!canonicalHref) {
+        throw new Error('HTTPS 首页缺少 canonical URL，无法确定公开跳转域名');
+    }
+    const canonicalUrl = new URL(canonicalHref);
+    if (canonicalUrl.protocol !== 'https:') {
+        throw new Error(`HTTPS 首页 canonical URL 必须使用 HTTPS：${canonicalHref}`);
+    }
+
+    return {
+        staticAssetPath: `${assetUrl.pathname}${assetUrl.search}`,
+        publicOrigin: canonicalUrl.origin,
+    };
 }
 
 async function assertHttpsRedirect({ label, httpUrl, expectedLocation }) {
@@ -65,12 +79,12 @@ async function assertHttpsRedirect({ label, httpUrl, expectedLocation }) {
     console.log(`✅ ${label} 已永久跳转，并保留路径与查询参数`);
 }
 
-async function assertCanonicalTrailingSlashRedirect({ httpsOrigin, pathname, fetchImpl = fetch }) {
+async function assertCanonicalTrailingSlashRedirect({ httpsOrigin, publicOrigin = httpsOrigin, pathname, fetchImpl = fetch }) {
     const localeQuery = 'lang=en';
     const redirectQuery = `${localeQuery}&ref=trailing-slash-redirect-check`;
     const source = makeUrl(httpsOrigin, `${pathname}/?${redirectQuery}`);
-    const expectedLocation = makeUrl(httpsOrigin, `${pathname}?${redirectQuery}`);
-    const expectedCanonical = makeUrl(httpsOrigin, `${pathname}?${localeQuery}`);
+    const expectedLocation = makeUrl(publicOrigin, `${pathname}?${redirectQuery}`);
+    const expectedCanonical = makeUrl(publicOrigin, `${pathname}?${localeQuery}`);
     const response = await fetchImpl(source, { redirect: 'manual' });
     const location = response.headers.get('location');
     console.log(`→ GET ${source} → ${response.status}${location ? ` Location: ${location}` : ''}`);
@@ -109,7 +123,7 @@ async function run() {
     }
 
     const httpOrigin = httpOriginFor(httpsOrigin);
-    const staticAssetPath = await findStaticAssetPath(httpsOrigin);
+    const { staticAssetPath, publicOrigin } = await readHomepageTargets(httpsOrigin);
     const checks = [
         { label: '首页', pathAndQuery: '/' },
         { label: '页面路由', pathAndQuery: '/glossary?source=https-redirect-check&lang=zh' },
@@ -122,12 +136,12 @@ async function run() {
         await assertHttpsRedirect({
             label,
             httpUrl: makeUrl(httpOrigin, pathAndQuery),
-            expectedLocation: makeUrl(httpsOrigin, pathAndQuery),
+            expectedLocation: makeUrl(publicOrigin, pathAndQuery),
         });
     }
     console.log('🚀 正在校验核心静态页尾随斜杠直达 HTTPS 规范 URL...');
     for (const pathname of TRAILING_SLASH_PATHS) {
-        await assertCanonicalTrailingSlashRedirect({ httpsOrigin, pathname });
+        await assertCanonicalTrailingSlashRedirect({ httpsOrigin, publicOrigin, pathname });
     }
     console.log('✅ HTTP→HTTPS 重定向检查全部通过。');
 }
@@ -138,6 +152,7 @@ module.exports = {
     assertCanonicalTrailingSlashRedirect,
     httpOriginFor,
     makeUrl,
+    readHomepageTargets,
     redirectMatches,
     TRAILING_SLASH_PATHS,
 };
