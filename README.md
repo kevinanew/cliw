@@ -1,6 +1,6 @@
 # Staging site checks
 
-这个仓库运行已部署网站的页面和公开接口测试。目标地址由 `E2E_BASE_URL` 环境变量提供；仓库中不保存实际域名、用户名或密码。`e2e/` 是独立的 Node.js 24 / pnpm 11 项目，不依赖网站源码或本地构建产物。
+这个仓库运行已部署网站的页面和公开接口测试。实际代码在 **`master`** 分支；GitHub 当前默认的 `main` 分支不是测试代码分支，查看、修改或提交测试时请明确选择 `master`。目标地址由 `E2E_BASE_URL` 环境变量提供；仓库中不保存实际域名、用户名或密码。`e2e/` 是独立的 Node.js 24 / pnpm 11 项目，不依赖网站源码或本地构建产物。
 
 开发规范见 [AGENTS.md](AGENTS.md)。
 
@@ -19,7 +19,7 @@ E2E_BASE_URL="$TARGET_URL" pnpm run e2e:lhci
 
 ## GitHub Actions
 
-在仓库的 **Settings → Secrets and variables → Actions** 中添加仓库 Secret `E2E_BASE_URL`。工作流在推送到 `main` 或 `master`、同仓库 Pull Request、每天定时及手动触发时运行。它安装固定版本依赖和 Chromium，分别执行 E2E 与 Lighthouse，并上传 Lighthouse 报告。
+在仓库的 **Settings → Secrets and variables → Actions** 中添加仓库 Secret `E2E_BASE_URL`。工作流在推送到 `master`、同仓库 Pull Request、每天定时及手动触发时运行。GitHub Actions 的定时与手动工作流从默认分支读取；当前默认分支仍是 `main`，因此需要在仓库设置中将默认分支改为 `master`，才能让 `master` 上的定时与手动工作流生效。它安装固定版本依赖和 Chromium，分别执行 E2E 与 Lighthouse，并上传 Lighthouse 报告。
 
 当前用例访问公开页面，没有登录步骤，也不读取用户名或密码，因此不需要账号 Secret。将来增加登录用例时，应先在 GitHub Actions Secrets 中保存账号凭据，再通过工作流的 `secrets` 上下文传入测试进程。
 
