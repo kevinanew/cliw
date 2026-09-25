@@ -2,6 +2,10 @@
 
 这里保存 Playwright 场景与 Linux Chromium 基准截图。测试访问 `VISUAL_BASE_URL` 指向的 HTTPS 站点；不会检出、安装或构建 `laiwan_io_web` 私有仓库。测试脚本和基准截图位于公开的 `cliw` 仓库 `master` 分支中。首页二维码包含当前部署域名，截图前隐藏其 SVG 图案；二维码是否显示及布局仍由单独断言检查。
 
+## 检查范围
+
+视觉回归只比较已部署、可通过 HTTPS 访问的网站。业务仓库不使用 Git tag 触发视觉检查或发布；视觉流程不检查发布前的本地构建、`dist` 或镜像。需要验证业务代码变更时，先完成目标站点部署，再运行视觉检查。部署前的检查结果只能反映当时线上的版本。
+
 ## GitHub Actions
 
 `.github/workflows/web-visual.yml` 使用固定的 `mcr.microsoft.com/playwright:v1.61.1-jammy` 容器和 pnpm 11.13.0。GitHub 当前默认分支是 `main`，但视觉工作流在 `master`；要使每天的定时任务和手动触发生效，需在仓库设置中将默认分支改为 `master`。它复用仓库 Secret `E2E_BASE_URL`，此值必须是已部署站点的 HTTPS 根地址。`master` 上的视觉测试变更推送、目标为 `master` 的同仓库 PR、每天 20:30 UTC 定时和手动触发时，三种语言分别在并行 job 中检查全部四种视口。每个 job 运行相同的测试命令；不受 `VISUAL_LOCALES` 控制的专项检查会在三个 job 中各运行一次。Fork PR 不运行需读取 Secret 的工作流。

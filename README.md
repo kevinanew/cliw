@@ -30,3 +30,5 @@ E2E_BASE_URL="$TARGET_URL" pnpm run e2e:lhci
 ## 视觉回归
 
 `visual/` 保存已部署网站的 Playwright 视觉测试与基准截图。GitHub Actions 使用 `E2E_BASE_URL` Secret 访问站点，直接比较截图，不检出或构建业务私有仓库；运行方式和基准维护见 [visual/README.md](visual/README.md)。`visual/` 与失败报告会在公开仓库中可见，CI 不上传 trace 或业务构建产物。
+
+**视觉检查规则：只测试已部署、可通过 HTTPS 访问的网站。**业务仓库不使用 Git tag 作为视觉检查或发布触发条件；不要为视觉检查增加版本 tag、发布前本地构建、`dist` 或镜像检查步骤。业务代码部署完成后，视觉检查才可用于验证该次变更；部署前运行时，结果只代表当时线上的版本。
