@@ -136,7 +136,7 @@ async function run() {
         await assertHttpsRedirect({
             label,
             httpUrl: makeUrl(httpOrigin, pathAndQuery),
-            expectedLocation: makeUrl(publicOrigin, pathAndQuery),
+            expectedLocation: makeUrl(httpsOrigin, pathAndQuery),
         });
     }
     console.log('🚀 正在校验核心静态页尾随斜杠直达 HTTPS 规范 URL...');
