@@ -8,6 +8,7 @@ const reportDir = `../reports/${runId}`;
 module.exports = defineConfig({
     testDir: '.',
     testMatch: '**/test.spec.js',
+    forbidOnly: Boolean(process.env.CI),
     // 各案例使用独立页面，可在 CI 中同时运行四个案例。
     workers: process.env.CI ? 4 : undefined,
     timeout: 45_000,

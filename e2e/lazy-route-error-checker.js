@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * 端到端：懒加载路由 chunk 失败时必须出现可见的「重试」UI。
+ * 端到端：懒加载路由 chunk 失败时显示「重试」，网络恢复后可以重新打开目标页面。
  *
  * 用 Playwright route.abort() 模拟 /glossary、/learning 对应命名 chunk 请求失败，
  * 断言出现 [data-testid="route-load-error"] / route-load-retry，而不是白屏或进度条永久卡住。
+ * 随后解除拦截并真实点击重试，确认目标内容恢复、错误与加载提示消失。
  *
  * 用法:
  *   NODE_ENV=staging node lazy-route-error-checker.js
@@ -12,6 +13,7 @@
  */
 
 const { chromium } = require('playwright');
+const { expect } = require('@playwright/test');
 const { ENV, URLS } = require('./env');
 const { assertPageMounted } = require('./assert-page-mounted');
 
@@ -141,7 +143,21 @@ async function assertRetryUiOnChunkFailure(browser, homeUrl, path) {
             }
         }
 
-        console.log(`✅ [lazy-route-error] ${path.id}: 重试 UI 可见`);
+        // 只恢复网络，不主动刷新或重新导航，确保真正验证站点的重试按钮。
+        await page.unroute(path.chunkGlob);
+        await retryButton.click({ timeout: READY_TIMEOUT_MS });
+        await expect(page).toHaveURL((url) => url.pathname === path.pathname, { timeout: READY_TIMEOUT_MS });
+
+        const { mounted, label } = await assertPageMounted(page, path.pathname, { timeout: READY_TIMEOUT_MS });
+        if (!mounted) {
+            throw new Error(`[${path.id}] 点击重试后目标页面未恢复（等待 ${label}）`);
+        }
+        await expect(errorRoot).toBeHidden({ timeout: READY_TIMEOUT_MS });
+        await expect(retryButton).toBeHidden({ timeout: READY_TIMEOUT_MS });
+        await expect(page.getByTestId('loading-spinner')).toBeHidden({ timeout: READY_TIMEOUT_MS });
+        await expect(page.getByTestId('boot-loading')).toBeHidden({ timeout: READY_TIMEOUT_MS });
+
+        console.log(`✅ [lazy-route-error] ${path.id}: 错误提示可见，点击重试后目标页面恢复`);
     } finally {
         await context.close();
     }
