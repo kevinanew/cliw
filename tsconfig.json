@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "types": ["node", "jest"],
+    "skipLibCheck": true
+  },
+  "include": [".woodpecker/**/*.mts", "upgrader/**/*.mts"]
+}

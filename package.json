@@ -1,0 +1,22 @@
+{
+  "name": "cliw-root-scripts",
+  "private": true,
+  "packageManager": "pnpm@11.13.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "lint": "pnpm run typecheck",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --project tsconfig.build.json && cp .ts-build/.woodpecker/ts-coverage-checker.mjs .ts-build/.woodpecker/ts-coverage-checker.test.mjs .woodpecker/",
+    "test:scripts": "pnpm run build && node --test .woodpecker/*.test.mjs",
+    "test:upgrader": "pnpm run build && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --config jest.config.cjs"
+  },
+  "devDependencies": {
+    "@types/jest": "30.0.0",
+    "@types/node": "24.5.2",
+    "jest": "30.4.2",
+    "typescript": "5.9.3"
+  }
+}

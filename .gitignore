@@ -1,4 +1,8 @@
 .pnpm-store/
+node_modules/
+.ts-build/
+.woodpecker/ts-coverage-checker.mjs
+.woodpecker/ts-coverage-checker.test.mjs
 visual/node_modules/
 visual/test-results/
 visual/playwright-report/
