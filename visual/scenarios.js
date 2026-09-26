@@ -107,7 +107,7 @@ const PAGES = [
     {
         label: 'h5-laiwan-life',
         path: '/h5-tutorial/laiwan-life',
-        readyTestId: 'h5-tutorial-url-link-0',
+        readyTestId: 'h5-tutorial-intro-title',
         expectedReadyText: {
             zh: '什么是H5？',
             'zh-TW': '什麼是H5？',
@@ -117,7 +117,7 @@ const PAGES = [
     {
         label: 'h5-laiwanpai-com',
         path: '/h5-tutorial/laiwanpai-com',
-        readyTestId: 'h5-tutorial-url-link-0',
+        readyTestId: 'h5-tutorial-intro-title',
         expectedReadyText: {
             zh: '什么是H5？',
             'zh-TW': '什麼是H5？',
