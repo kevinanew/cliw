@@ -20,26 +20,59 @@ const NARROW_VIEWPORT_LABELS = ['mobile', 'pixel-9'];
 // 专项场景的范围必须在这里显式声明。测试会逐项验证这些范围，避免新语言或
 // 新视口因为历史上的条件分支而被静默漏掉。
 const SPECIAL_SCENARIO_SCOPES = Object.freeze({
-    mobileMenu: { locales: 'all', viewports: NARROW_VIEWPORT_LABELS, reason: '仅窄屏显示汉堡菜单' },
+    mobileMenu: {
+        locales: 'all',
+        viewports: NARROW_VIEWPORT_LABELS,
+        reason: '仅窄屏显示汉堡菜单',
+    },
     languageSwitch: {
         locales: ['zh'],
         viewports: NARROW_VIEWPORT_LABELS,
         reason: '验证从简中切换到英文的跨语言流程；目标英文由同一场景覆盖',
     },
-    tutorialDrawer: { locales: 'all', viewports: NARROW_VIEWPORT_LABELS, reason: '教程 Drawer 仅窄屏存在' },
-    appleModal: { locales: 'all', viewports: 'all', reason: '弹窗在全部语言和响应式形态均存在' },
-    learningRating: { locales: 'all', viewports: 'all', reason: '宽屏使用 hover，窄屏使用 focus' },
-    glossaryIndex: { locales: 'all', viewports: WIDE_VIEWPORT_LABELS, reason: '字母索引仅宽屏显示' },
-    glossaryDefinition: { locales: 'all', viewports: 'all', reason: '词条详情适用于全部组合' },
-    glossaryNotFound: { locales: 'all', viewports: 'all', reason: '词条不存在态适用于全部组合' },
-    glossarySearch: { locales: 'all', viewports: 'all', reason: '搜索在全部组合存在，窄屏使用导航搜索框' },
+    tutorialDrawer: {
+        locales: 'all',
+        viewports: NARROW_VIEWPORT_LABELS,
+        reason: '教程 Drawer 仅窄屏存在',
+    },
+    appleModal: {
+        locales: 'all',
+        viewports: 'all',
+        reason: '弹窗在全部语言和响应式形态均存在',
+    },
+    learningRating: {
+        locales: 'all',
+        viewports: 'all',
+        reason: '宽屏使用 hover，窄屏使用 focus',
+    },
+    glossaryIndex: {
+        locales: 'all',
+        viewports: WIDE_VIEWPORT_LABELS,
+        reason: '字母索引仅宽屏显示',
+    },
+    glossaryDefinition: {
+        locales: 'all',
+        viewports: 'all',
+        reason: '词条详情适用于全部组合',
+    },
+    glossaryNotFound: {
+        locales: 'all',
+        viewports: 'all',
+        reason: '词条不存在态适用于全部组合',
+    },
+    glossarySearch: {
+        locales: 'all',
+        viewports: 'all',
+        reason: '搜索在全部组合存在，窄屏使用导航搜索框',
+    },
 });
 
 const PAGES = [
     {
         label: 'homepage',
         path: '/',
-        readyText: {
+        readyTestId: 'home-title',
+        expectedReadyText: {
             zh: '德州扑克约局社区',
             'zh-TW': '德州撲克約局社群',
             en: "Texas Hold'em Poker Game Community",
@@ -48,7 +81,8 @@ const PAGES = [
     {
         label: 'tutorial',
         path: '/tutorial',
-        readyText: {
+        readyTestId: 'tutorial-step-one',
+        expectedReadyText: {
             zh: '一、注册一个新的AppleID并下载来玩:',
             'zh-TW': '一、註冊一個新的AppleID並下載來玩:',
             en: '1. Register a new Apple ID and download GoPlay360',
@@ -57,7 +91,8 @@ const PAGES = [
     {
         label: 'learning',
         path: '/learning',
-        readyText: {
+        readyTestId: 'learning-page',
+        expectedReadyText: {
             zh: '无限德州扑克进阶指南',
             'zh-TW': '無限德州撲克進階指南',
             en: "No-Limit Hold'em For Advanced Players",
@@ -66,17 +101,14 @@ const PAGES = [
     {
         label: 'glossary',
         path: '/glossary',
-        readyPlaceholder: {
-            zh: '搜索德州扑克术语',
-            'zh-TW': '搜尋德州撲克術語',
-            en: 'Search glossary',
-        },
+        readyTestId: 'glossary-header',
         waitForLoading: true,
     },
     {
         label: 'h5-laiwan-life',
         path: '/h5-tutorial/laiwan-life',
-        readyText: {
+        readyTestId: 'h5-tutorial-url-link-0',
+        expectedReadyText: {
             zh: '什么是H5？',
             'zh-TW': '什麼是H5？',
             en: 'What is H5?',
@@ -85,7 +117,8 @@ const PAGES = [
     {
         label: 'h5-laiwanpai-com',
         path: '/h5-tutorial/laiwanpai-com',
-        readyText: {
+        readyTestId: 'h5-tutorial-url-link-0',
+        expectedReadyText: {
             zh: '什么是H5？',
             'zh-TW': '什麼是H5？',
             en: 'What is H5?',
@@ -102,9 +135,9 @@ const MOBILE_MENU_OPEN_SCENARIO = {
     locale: 'zh',
     viewportLabel: 'mobile',
     labelSuffix: 'menu_open',
-    clickSelector: '[data-testid="navbar-mobile-menu-button"]',
+    clickTestId: 'navbar-mobile-menu-button',
     // Prefer selector readiness over fixed timeout so slow CI does not capture a half-open menu.
-    postInteractionWait: '[data-testid="navbar-mobile-menu"]',
+    postInteractionWait: 'navbar-mobile-menu',
 };
 
 const MOBILE_LANGUAGE_SWITCH_SCENARIO = {
@@ -112,11 +145,8 @@ const MOBILE_LANGUAGE_SWITCH_SCENARIO = {
     locale: 'zh',
     viewportLabel: 'mobile',
     labelSuffix: 'language_switch_en',
-    clickSelectors: [
-        '[data-testid="navbar-mobile-menu-button"]',
-        '[data-testid="navbar-mobile-menu"] [data-testid="language-option-en"]',
-    ],
-    postInteractionHide: '[data-testid="navbar-mobile-menu"]',
+    clickTestIds: ['navbar-mobile-menu-button', { within: 'navbar-mobile-menu', testId: 'language-option-en' }],
+    postInteractionHide: 'navbar-mobile-menu',
     selectors: ['viewport'],
 };
 
@@ -126,8 +156,8 @@ const TUTORIAL_MOBILE_DRAWER_OPEN_SCENARIO = {
     locale: 'zh',
     viewportLabel: 'mobile',
     labelSuffix: 'drawer_open',
-    clickSelector: '[data-testid="mobile-nav-menu-button"]',
-    postInteractionWait: '[data-testid="mobile-drawer-content"]',
+    clickTestId: 'mobile-nav-menu-button',
+    postInteractionWait: 'mobile-drawer-content',
     // 教程页很长；整页截图会把 fixed Drawer 冲掉，只截当前视口
     selectors: ['viewport'],
 };
@@ -138,16 +168,16 @@ const APPLE_DOWNLOAD_MODAL_SCENARIOS = [
         pageLabel: 'homepage',
         viewportLabels: WIDE_VIEWPORT_LABELS,
         labelSuffix: 'apple_modal_open',
-        clickSelector: '#apple-download-button',
-        postInteractionWait: '#ios-download-modal',
+        clickTestId: 'ios-download-trigger',
+        postInteractionWait: 'ios-download-modal',
     },
     {
         pageLabel: 'homepage',
         viewportLabels: NARROW_VIEWPORT_LABELS,
         labelSuffix: 'apple_modal_open',
-        clickSelector: '#apple-download-button',
-        postInteractionWait: '#ios-download-modal',
-        singleLineSelectors: ['[data-testid="ios-product-name"]'],
+        clickTestId: 'ios-download-trigger',
+        postInteractionWait: 'ios-download-modal',
+        singleLineTestIds: ['ios-product-name'],
     },
 ];
 
@@ -158,12 +188,12 @@ const LEARNING_RATING_INTERACTION_SCENARIOS = [
     {
         viewportLabels: WIDE_VIEWPORT_LABELS,
         labelSuffix: 'rating_hover',
-        hoverSelector: 'article:first-of-type [data-testid="learning-rating-link"]',
+        hoverTestId: 'learning-rating-link',
     },
     {
         viewportLabels: NARROW_VIEWPORT_LABELS,
         labelSuffix: 'rating_focus',
-        focusSelector: 'article:first-of-type [data-testid="learning-rating-link"]',
+        focusTestId: 'learning-rating-link',
     },
 ];
 
@@ -171,19 +201,19 @@ const GLOSSARY_CLICK_INDEX_SCENARIOS = [
     {
         pageLabel: 'glossary',
         labelSuffix: 'click_index_a',
-        clickSelector: '[data-testid="glossary-letter-A"]',
+        clickTestId: 'glossary-letter-A',
         // Prefer group-in-viewport readiness over fixed timeout (scrollIntoView).
-        postInteractionWait: '#group-A',
+        postInteractionWait: 'glossary-group-A',
         selectors: ['viewport'],
     },
     {
         pageLabel: 'glossary',
         labelSuffix: 'click_index_h',
-        clickSelector: '[data-testid="glossary-letter-H"]',
+        clickTestId: 'glossary-letter-H',
         // H 组变短后 content-visibility 的占位高度切换可能把它推出视口；
         // 先等待 React 提交选中态，再用真实布局重新对齐目标。
-        postInteractionWait: '[data-testid="glossary-page"][data-index-navigation-ready="true"]',
-        scrollToSelector: '#group-H',
+        postInteractionWait: 'glossary-group-H',
+        scrollToTestId: 'glossary-group-H',
         selectors: ['viewport'],
     },
 ];
@@ -192,9 +222,9 @@ const GLOSSARY_CLICK_INDEX_SCENARIOS = [
 // 选内容最丰富的词条：三语均为 10 个可链接 + 1 个纯文本相关主题，正文多段，
 // 能同时覆盖多段落排版、相关主题换行与同组术语侧栏。
 const GLOSSARY_DEFINITION_TERMS = {
-    zh: { term: 'dezhoupuke', readyText: '德州扑克' },
-    'zh-TW': { term: 'dezhoupuke', readyText: '德州撲克' },
-    en: { term: 'texasholdem', readyText: "Texas Hold'em" },
+    zh: { term: 'dezhoupuke', termName: '德州扑克' },
+    'zh-TW': { term: 'dezhoupuke', termName: '德州撲克' },
+    en: { term: 'texasholdem', termName: "Texas Hold'em" },
 };
 
 // 词条不存在态使用各语言路由下同一个确定性无效 slug。
@@ -202,7 +232,7 @@ const GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO = {
     term: 'not-a-real-term-visual',
     // The state container is less timing-sensitive than a link label during the
     // definition page's initial transition.
-    readySelector: '[data-testid="definition-not-found"]',
+    readyTestId: 'definition-not-found',
 };
 
 // 术语表搜索过滤（desktop 用主搜索框；mobile 用导航栏搜索框）
@@ -213,17 +243,17 @@ const GLOSSARY_SEARCH_QUERIES = {
 };
 
 // 过滤完成后应可见的目标词条（与 GLOSSARY_SEARCH_QUERIES 对齐）
-const GLOSSARY_SEARCH_READY_SELECTORS = {
-    zh: '[data-testid="glossary-term-banzhahu"]',
-    'zh-TW': '[data-testid="glossary-term-banzhahu"]',
-    en: '[data-testid="glossary-term-bluff"]',
+const GLOSSARY_SEARCH_READY_TEST_IDS = {
+    zh: 'glossary-term-banzhahu',
+    'zh-TW': 'glossary-term-banzhahu',
+    en: 'glossary-term-bluff',
 };
 
 // 过滤前存在、过滤后应卸下的词条（避免目标词条过滤前已在 DOM 导致 wait 立刻返回）
-const GLOSSARY_SEARCH_HIDE_SELECTORS = {
-    zh: '[data-testid="glossary-term-agaodepaixingzuhe"]',
-    'zh-TW': '[data-testid="glossary-term-agaodepaixingzuhe"]',
-    en: '[data-testid="glossary-term-acehigh"]',
+const GLOSSARY_SEARCH_HIDE_TEST_IDS = {
+    zh: 'glossary-term-agaodepaixingzuhe',
+    'zh-TW': 'glossary-term-agaodepaixingzuhe',
+    en: 'glossary-term-acehigh',
 };
 
 /**
@@ -292,12 +322,11 @@ function buildScenario(baseUrl, page, locale, viewport, overrides = {}) {
         label: overrides.label ?? scenarioLabel(locale, viewport, page.label),
         url,
         locale: locale.code,
-        readyText: page.readyText?.[locale.code],
-        readyPlaceholder: page.readyPlaceholder?.[locale.code],
-        readySelector: page.readySelector,
+        readyTestId: page.readyTestId,
+        expectedReadyText: page.expectedReadyText?.[locale.code],
         waitForLoading: page.waitForLoading ?? false,
         delay: 300,
-        clickSelector: '',
+        clickTestId: '',
         postInteractionWait: 0,
         // document = 整页；viewport = 当前视口
         selectors: ['document'],
@@ -319,7 +348,7 @@ function buildLocaleViewportScenarios(baseUrl, locale, viewport) {
                     MOBILE_MENU_OPEN_SCENARIO.pageLabel,
                     MOBILE_MENU_OPEN_SCENARIO.labelSuffix,
                 ),
-                clickSelector: MOBILE_MENU_OPEN_SCENARIO.clickSelector,
+                clickTestId: MOBILE_MENU_OPEN_SCENARIO.clickTestId,
                 postInteractionWait: MOBILE_MENU_OPEN_SCENARIO.postInteractionWait,
             }),
         );
@@ -338,7 +367,7 @@ function buildLocaleViewportScenarios(baseUrl, locale, viewport) {
                     MOBILE_LANGUAGE_SWITCH_SCENARIO.pageLabel,
                     MOBILE_LANGUAGE_SWITCH_SCENARIO.labelSuffix,
                 ),
-                clickSelectors: MOBILE_LANGUAGE_SWITCH_SCENARIO.clickSelectors,
+                clickTestIds: MOBILE_LANGUAGE_SWITCH_SCENARIO.clickTestIds,
                 postInteractionHide: MOBILE_LANGUAGE_SWITCH_SCENARIO.postInteractionHide,
                 selectors: MOBILE_LANGUAGE_SWITCH_SCENARIO.selectors,
             }),
@@ -355,7 +384,7 @@ function buildLocaleViewportScenarios(baseUrl, locale, viewport) {
                     TUTORIAL_MOBILE_DRAWER_OPEN_SCENARIO.pageLabel,
                     TUTORIAL_MOBILE_DRAWER_OPEN_SCENARIO.labelSuffix,
                 ),
-                clickSelector: TUTORIAL_MOBILE_DRAWER_OPEN_SCENARIO.clickSelector,
+                clickTestId: TUTORIAL_MOBILE_DRAWER_OPEN_SCENARIO.clickTestId,
                 postInteractionWait: TUTORIAL_MOBILE_DRAWER_OPEN_SCENARIO.postInteractionWait,
                 selectors: TUTORIAL_MOBILE_DRAWER_OPEN_SCENARIO.selectors,
             }),
@@ -370,10 +399,10 @@ function buildLocaleViewportScenarios(baseUrl, locale, viewport) {
         scenarios.push(
             buildScenario(baseUrl, page, locale, viewport, {
                 label: scenarioLabel(locale, viewport, config.pageLabel, config.labelSuffix),
-                clickSelector: config.clickSelector,
+                clickTestId: config.clickTestId,
                 postInteractionWait: config.postInteractionWait,
                 // 英文提示文案没有富文本 product-name span；弹窗本身仍完整覆盖。
-                singleLineSelectors: locale.code === 'en' ? undefined : config.singleLineSelectors,
+                singleLineTestIds: locale.code === 'en' ? undefined : config.singleLineTestIds,
             }),
         );
     });
@@ -386,8 +415,18 @@ function buildLocaleViewportScenarios(baseUrl, locale, viewport) {
         scenarios.push(
             buildScenario(baseUrl, page, locale, viewport, {
                 label: scenarioLabel(locale, viewport, page.label, config.labelSuffix),
-                hoverSelector: config.hoverSelector,
-                focusSelector: config.focusSelector,
+                hoverTestId: config.hoverTestId
+                    ? {
+                          within: `learning-book-no-limit-holdem-advanced-${locale.code === 'en' ? 'en' : 'zh'}`,
+                          testId: config.hoverTestId,
+                      }
+                    : undefined,
+                focusTestId: config.focusTestId
+                    ? {
+                          within: `learning-book-no-limit-holdem-advanced-${locale.code === 'en' ? 'en' : 'zh'}`,
+                          testId: config.focusTestId,
+                      }
+                    : undefined,
                 selectors: ['viewport'],
             }),
         );
@@ -399,7 +438,7 @@ function buildLocaleViewportScenarios(baseUrl, locale, viewport) {
             scenarios.push(
                 buildScenario(baseUrl, glossaryPage, locale, viewport, {
                     label: scenarioLabel(locale, viewport, config.pageLabel, config.labelSuffix),
-                    clickSelector: config.clickSelector,
+                    clickTestId: config.clickTestId,
                     postInteractionWait: config.postInteractionWait,
                     selectors: config.selectors,
                 }),
@@ -411,7 +450,8 @@ function buildLocaleViewportScenarios(baseUrl, locale, viewport) {
     const definitionPage = {
         label: 'glossary_definition',
         path: `/glossary/${locale.code}/${termConfig.term}`,
-        readyText: { [locale.code]: termConfig.readyText },
+        readyTestId: 'definition-term-name',
+        expectedReadyText: { [locale.code]: termConfig.termName },
         waitForLoading: true,
     };
     scenarios.push(buildScenario(baseUrl, definitionPage, locale, viewport));
@@ -419,26 +459,26 @@ function buildLocaleViewportScenarios(baseUrl, locale, viewport) {
     const notFoundPage = {
         label: 'glossary_definition_not_found',
         path: `/glossary/${locale.code}/${GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO.term}`,
-        readySelector: GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO.readySelector,
+        readyTestId: GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO.readyTestId,
         waitForLoading: true,
     };
     scenarios.push(buildScenario(baseUrl, notFoundPage, locale, viewport));
 
     const glossaryPage = PAGES.find((item) => item.label === 'glossary');
-    const searchSelector = NARROW_VIEWPORT_LABELS.includes(viewport.label)
-        ? '[data-testid="glossary-mobile-search-input"]'
-        : '[data-testid="glossary-search-input"]';
+    const searchTestId = NARROW_VIEWPORT_LABELS.includes(viewport.label)
+        ? 'glossary-mobile-search-input'
+        : 'glossary-search-input';
     scenarios.push(
         buildScenario(baseUrl, glossaryPage, locale, viewport, {
             label: scenarioLabel(locale, viewport, glossaryPage.label, 'search_filter'),
-            keyPressSelector: {
-                selector: searchSelector,
+            keyPressTestId: {
+                testId: searchTestId,
                 keyPress: GLOSSARY_SEARCH_QUERIES[locale.code],
             },
-            postInteractionWait: GLOSSARY_SEARCH_READY_SELECTORS[locale.code],
-            scrollIntoViewSelector:
-                viewport.label === 'small-desktop' ? GLOSSARY_SEARCH_READY_SELECTORS[locale.code] : undefined,
-            postInteractionHide: GLOSSARY_SEARCH_HIDE_SELECTORS[locale.code],
+            postInteractionWait: GLOSSARY_SEARCH_READY_TEST_IDS[locale.code],
+            scrollIntoViewTestId:
+                viewport.label === 'small-desktop' ? GLOSSARY_SEARCH_READY_TEST_IDS[locale.code] : undefined,
+            postInteractionHide: GLOSSARY_SEARCH_HIDE_TEST_IDS[locale.code],
             selectors: ['viewport'],
         }),
     );
@@ -481,8 +521,8 @@ module.exports = {
     GLOSSARY_DEFINITION_TERMS,
     GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO,
     GLOSSARY_SEARCH_QUERIES,
-    GLOSSARY_SEARCH_READY_SELECTORS,
-    GLOSSARY_SEARCH_HIDE_SELECTORS,
+    GLOSSARY_SEARCH_READY_TEST_IDS,
+    GLOSSARY_SEARCH_HIDE_TEST_IDS,
     resolveLocales,
     resolveViewports,
     scenarioLabel,

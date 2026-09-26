@@ -24,5 +24,5 @@
 | 业务目标 | data-testid | 状态 |
 | --- | --- | --- |
 | 相关主题区域 | `related-topics` | 已确认 |
-| Z-game 链接 | `related-topics` 内名称为 `Z-game` 的链接 | 已确认 |
+| Z-game 链接 | `related-topics` 内的 `related-topic-zgame` | 需部署业务源码中的标识 |
 | 详情名称 | `definition-term-name` | 已确认 |

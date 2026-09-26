@@ -23,5 +23,5 @@
 
 | 业务目标 | data-testid | 状态 |
 | --- | --- | --- |
-| 第一组安装教程入口 | 指向 `/h5-tutorial/laiwan-life` 的链接 | 已确认 |
+| 第一组安装教程入口 | `h5-tutorial-link-laiwan-life` | 已确认 |
 | 教程链接 | `h5-tutorial-url-link-0` | 已确认 |

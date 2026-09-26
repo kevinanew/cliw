@@ -99,7 +99,7 @@ async function assertGlossarySlugSwitch(page, nextLocale) {
     let issues = 0;
 
     console.log(`🔎 正在点击 ${nextLocale}，验证词条对照 slug 导航...`);
-    await page.locator(`[data-testid="language-option-${nextLocale}"]`).first().click();
+    await page.getByTestId(`language-option-${nextLocale}`).click();
 
     try {
         await page.waitForFunction(
@@ -295,7 +295,7 @@ async function runGlossaryMissingAlternateCheck(browser, page) {
     const sourceUrl = new URL(`${sourcePath}?lang=zh&ref=nav#section`, baseUrl);
     console.log(`🔎 正在验证无英文对照词条降级: ${sourcePath}`);
     await page.goto(sourceUrl.toString(), { waitUntil: 'load', timeout: 60000 });
-    await page.locator('[data-testid="language-option-en"]').first().click();
+    await page.getByTestId('language-option-en').click();
 
     const expectedUrl = new URL('/glossary?ref=nav&lang=en#section', baseUrl).toString();
     await page.waitForFunction((expected) => window.location.href === expected, expectedUrl, { timeout: 15000 });
@@ -339,8 +339,8 @@ async function runCrossPageLanguageCheck(browser, page) {
     console.log('🔎 正在验证切换英文后的跨页导航与无存储分享 URL...');
     await page.goto(new URL('/?lang=zh', baseUrl).toString(), { waitUntil: 'load', timeout: 60000 });
     await page.waitForSelector('[data-testid="language-select"]', { timeout: 30000 });
-    await page.locator('[data-testid="language-option-en"]').first().click();
-    await page.locator('[data-testid="navbar-link-navbar_terminology_list"]').click();
+    await page.getByTestId('language-option-en').click();
+    await page.getByTestId('navbar-link-navbar_terminology_list').click();
 
     const expectedUrl = new URL('/glossary?lang=en', baseUrl).toString();
     try {
@@ -378,7 +378,7 @@ async function runTutorialLanguageChecks(page) {
     await navigateToMountedTutorial(page, startUrl);
 
     for (const locale of ['zh-TW', 'en', 'zh']) {
-        await page.locator(`[data-testid="language-option-${locale}"]`).first().click();
+        await page.getByTestId(`language-option-${locale}`).click();
         const expectedUrl = new URL(`/tutorial?ref=nav&lang=${locale}#step-one`, baseUrl).toString();
         try {
             await page.waitForFunction(
@@ -453,7 +453,7 @@ async function reportUrlIssue(page, locale, phase) {
 
 async function clickEnglishAndCheck({ context, page }) {
     console.log('🔎 正在点击 EN 切换按钮...');
-    await page.locator('[data-testid="language-option-en"]').first().click();
+    await page.getByTestId('language-option-en').click();
     await page.waitForFunction(
         () => document.querySelector('[data-testid="language-option-en"]')?.getAttribute('aria-pressed') === 'true',
         { timeout: 15000 },
@@ -501,7 +501,7 @@ async function reloadEnglishAndCheck({ context, page }) {
 
 async function clickTraditionalChineseAndCheck({ context, page }) {
     console.log('🔎 正在点击 zh-TW 切换按钮...');
-    await page.locator('[data-testid="language-option-zh-TW"]').first().click();
+    await page.getByTestId('language-option-zh-TW').click();
     await page.waitForFunction(
         () => document.querySelector('[data-testid="language-option-zh-TW"]')?.getAttribute('aria-pressed') === 'true',
         { timeout: 15000 },
@@ -526,7 +526,7 @@ async function reloadTraditionalAndSwitchToChinese({ context, page }) {
     const cookie = await getLanguageCookie(context);
     let issues = validateZhTWState(state, cookie, '持久化');
     console.log('🔎 正在点击 zh 切换按钮，验证简中 URL 同步...');
-    await page.locator('[data-testid="language-option-zh"]').first().click();
+    await page.getByTestId('language-option-zh').click();
     try {
         await page.waitForFunction(
             () => document.querySelector('[data-testid="language-option-zh"]')?.getAttribute('aria-pressed') === 'true',

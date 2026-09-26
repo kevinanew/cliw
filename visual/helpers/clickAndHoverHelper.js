@@ -1,89 +1,65 @@
+const { expect } = require('@playwright/test');
+
+// 有重复子控件时，先用唯一业务容器缩小范围。
+function getTarget(page, target) {
+    return typeof target === 'string'
+        ? page.getByTestId(target)
+        : page.getByTestId(target.within).getByTestId(target.testId);
+}
+
 module.exports = async (page, scenario) => {
-    const hoverSelector = scenario.hoverSelectors || scenario.hoverSelector;
-    const clickSelector = scenario.clickSelectors || scenario.clickSelector;
-    const keyPressSelector = scenario.keyPressSelectors || scenario.keyPressSelector;
-    const focusSelector = scenario.focusSelectors || scenario.focusSelector;
-    const { scrollToSelector, scrollIntoViewSelector, postInteractionWait, postInteractionHide } = scenario;
-
-    if (keyPressSelector) {
-        for (const keyPressSelectorItem of [].concat(keyPressSelector)) {
-            const locator = page.locator(keyPressSelectorItem.selector);
-            await locator.waitFor({ state: 'visible' });
-            await locator.fill(keyPressSelectorItem.keyPress);
+    const inputs = scenario.keyPressTestIds || scenario.keyPressTestId;
+    if (inputs) {
+        for (const input of [].concat(inputs)) {
+            const locator = getTarget(page, input.testId);
+            await expect(locator).toHaveCount(1);
+            await locator.fill(input.keyPress);
         }
     }
 
-    if (hoverSelector) {
-        for (const hoverSelectorIndex of [].concat(hoverSelector)) {
-            await page.locator(hoverSelectorIndex).hover();
+    for (const action of ['hover', 'focus', 'click']) {
+        const targets = scenario[`${action}TestIds`] || scenario[`${action}TestId`];
+        if (!targets) continue;
+        for (const target of [].concat(targets)) {
+            const locator = getTarget(page, target);
+            await expect(locator).toHaveCount(1);
+            await locator[action]();
         }
     }
 
-    if (focusSelector) {
-        for (const focusSelectorItem of [].concat(focusSelector)) {
-            await page.locator(focusSelectorItem).focus();
-        }
+    if (scenario.postInteractionHide) {
+        await expect(getTarget(page, scenario.postInteractionHide)).toHaveCount(0);
     }
-
-    if (clickSelector) {
-        for (const clickSelectorIndex of [].concat(clickSelector)) {
-            await page.locator(clickSelectorIndex).click();
-        }
+    if (scenario.scrollIntoViewTestId) {
+        const target = getTarget(page, scenario.scrollIntoViewTestId);
+        await expect(target).toHaveCount(1);
+        await target.scrollIntoViewIfNeeded();
     }
-
-    // Prefer detachment/hide signals for filter-style interactions (element may already exist).
-    if (postInteractionHide) {
-        await page.waitForSelector(postInteractionHide, { state: 'detached' });
+    if (scenario.postInteractionWait) {
+        const target = getTarget(page, scenario.postInteractionWait);
+        await expect(target).toHaveCount(1);
+        await expect(target).toBeInViewport();
     }
-
-    if (scrollIntoViewSelector) {
-        await page.locator(scrollIntoViewSelector).scrollIntoViewIfNeeded();
-    }
-
-    if (postInteractionWait) {
-        const timeoutMs = Number(postInteractionWait);
-        // Numeric wait is a last-resort fallback; prefer selector readiness.
-        if (Number.isFinite(timeoutMs) && timeoutMs > 0 && String(postInteractionWait) === String(timeoutMs)) {
-            await page.waitForTimeout(timeoutMs);
-        } else {
-            await page.waitForSelector(postInteractionWait);
-            // Scroll targets (e.g. #group-A) already exist in DOM; wait until in viewport.
-            await page.waitForFunction((selector) => {
-                const el = document.querySelector(selector);
-                if (!el) {
-                    return false;
-                }
-                const rect = el.getBoundingClientRect();
-                return (
-                    rect.width > 0 &&
-                    rect.height > 0 &&
-                    rect.top < window.innerHeight &&
-                    rect.bottom > 0 &&
-                    rect.left < window.innerWidth &&
-                    rect.right > 0
-                );
-            }, postInteractionWait);
-        }
-    }
-
-    if (scrollToSelector) {
-        await page.waitForSelector(scrollToSelector);
-        await page.evaluate(async (selector) => {
-            const target = document.querySelector(selector);
-            const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
-            // content-visibility 会在首次跳转后回填真实分组高度；跨两帧重新对齐，
-            // 确保截图反映稳定后的实际点击结果。
+    if (scenario.scrollToTestId) {
+        const target = getTarget(page, scenario.scrollToTestId);
+        await expect(target).toHaveCount(1);
+        await target.evaluate(async (element) => {
+            // 跨两帧重新对齐，等待离屏分组回填真实高度。
             for (let frame = 0; frame < 3; frame += 1) {
-                target.scrollIntoView();
-                await nextFrame();
+                element.scrollIntoView();
+                await new Promise((resolve) => requestAnimationFrame(resolve));
             }
-        }, scrollToSelector);
-        await page.waitForFunction((selector) => {
-            const target = document.querySelector(selector);
-            const page = target?.closest('[class*="glossaryPage"]');
-            if (!target || !page) return false;
-            const anchorOffset = Number.parseFloat(getComputedStyle(page).getPropertyValue('--glossary-anchor-offset'));
-            return Math.abs(target.getBoundingClientRect().top - anchorOffset) <= 1;
-        }, scrollToSelector);
+        });
+        await expect
+            .poll(() =>
+                target.evaluate((element) => {
+                    const container = element.closest('[data-testid="glossary-page"]');
+                    const offset = Number.parseFloat(
+                        getComputedStyle(container).getPropertyValue('--glossary-anchor-offset'),
+                    );
+                    return Math.abs(element.getBoundingClientRect().top - offset);
+                }),
+            )
+            .toBeLessThanOrEqual(1);
     }
 };

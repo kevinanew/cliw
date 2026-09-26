@@ -273,7 +273,7 @@ async function measureFeedbackOnce(browser, homeUrl, path) {
                     return;
                 }
                 const spinner = document.querySelector('[data-testid="loading-spinner"]');
-                const nprogress = document.querySelector('#nprogress');
+                const nprogress = document.querySelector('[data-testid="route-progress"]');
                 const nprogressVisible =
                     nprogress &&
                     window.getComputedStyle(nprogress).display !== 'none' &&

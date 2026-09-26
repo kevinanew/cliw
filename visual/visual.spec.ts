@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect, type Page, type BrowserContext, type Route } from '@playwright/test';
 const { buildScenarios, LANGUAGE_COOKIE_KEY, MOBILE_USER_AGENT } = require('./scenarios');
 const {
     materializeImagesForScreenshot,
@@ -16,14 +16,16 @@ const scenarios = buildScenarios(BASE_URL);
 const ENTRY_JS_RE = /\/assets\/(main|react|mui|intl|vendor)\.[^/]+\.js(?:\?.*)?$/;
 // 使用之前随前端构建发布的 manifest 内容，保持快照中的版本不变，
 // 也不再要求 dist 内保留 APK 文件。
-const APK_INDEX_FIXTURE = { apk_files: ['顶级玩家-2.0.2308151624.apk', '顶级玩家-2.0.2308151249.apk'] };
+const APK_INDEX_FIXTURE = {
+    apk_files: ['顶级玩家-2.0.2308151624.apk', '顶级玩家-2.0.2308151249.apk'],
+};
 const TUTORIAL_IMAGE_PRELOAD_MARGIN_PX = 96;
 // 书籍文件迁移到 S3 后，纯静态的视觉服务器无法模拟生产 nginx 对 /book/ 的反代。
 // 这些对象是一年 immutable 缓存，优先使用 staging、失败时回退 production，
 // 可保留真实封面及既有基线，并避免单个对象存储端点的瞬时 TLS 故障中断整套测试。
 const bookMediaCache = new Map();
 
-async function mockS3Media(page, apkIndexHandler) {
+async function mockS3Media(page: Page, apkIndexHandler?: (route: Route) => Promise<unknown>) {
     await page.route(
         '**/apk/index.json',
         apkIndexHandler ||
@@ -62,18 +64,13 @@ async function mockS3Media(page, apkIndexHandler) {
     });
 }
 
-async function openHomepageAtBreakpoint(page, context, width, locale = 'en', height = 900, apkIndexHandler) {
-    const readyTextByLocale = {
-        zh: '德州扑克约局社区',
-        'zh-TW': '德州撲克約局社群',
-        en: "Texas Hold'em Poker Game Community",
-    };
+async function openHomepageAtBreakpoint(page: Page, context: BrowserContext, width: number, locale = 'en', height = 900, apkIndexHandler?: (route: Route) => Promise<unknown>) {
     const viewport = { label: `breakpoint-${width}x${height}`, width, height };
     const scenario = {
         label: `${locale}_breakpoint-${width}_homepage`,
         url: `${BASE_URL}/`,
         locale,
-        readyText: readyTextByLocale[locale],
+        readyTestId: 'home-title',
         delay: 0,
         selectors: ['viewport'],
         viewports: [viewport],
@@ -85,16 +82,16 @@ async function openHomepageAtBreakpoint(page, context, width, locale = 'en', hei
     await prepareAfterNavigate(page, scenario);
 }
 
-async function materializeDeferredGlossaryGroups(page) {
+async function materializeDeferredGlossaryGroups(page: Page) {
     const complete = await page.evaluate(async () => {
-        const groups = Array.from(document.querySelectorAll('[data-glossary-group]'));
+        const groups = Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="glossary-group-"][data-glossary-group]'));
         const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
         // The glossary deliberately mounts off-screen groups only when they near the
         // viewport. Visit each placeholder so a full-page visual baseline contains
         // the same complete document a user gets after reading the page.
         for (const group of groups) {
-            if (!group.querySelector(':scope > ul')) {
+            if (!group.querySelector('[data-testid^="glossary-group-list-"]')) {
                 group.scrollIntoView({ block: 'center' });
                 await nextFrame();
             }
@@ -102,7 +99,7 @@ async function materializeDeferredGlossaryGroups(page) {
 
         window.scrollTo(0, 0);
         await nextFrame();
-        return groups.every((group) => group.querySelector(':scope > ul'));
+        return groups.every((group) => group.querySelector('[data-testid^="glossary-group-list-"]'));
     });
 
     expect(complete, 'all deferred glossary groups should be rendered before a full-page screenshot').toBe(true);
@@ -144,29 +141,26 @@ test.describe('visual regression', () => {
             }
 
             if (scenario.label === 'zh_pixel-9_learning') {
-                const layout = await page
-                    .locator('section')
-                    .filter({ has: page.locator('article') })
-                    .evaluate((list) => {
-                        const cards = Array.from(list.querySelectorAll('article'));
-                        const firstCard = cards[0];
-                        const cover = firstCard.querySelector('[data-testid="learning-book-cover"]');
-                        const download = firstCard.querySelector('[data-testid="learning-download-link"]');
-                        const rating = firstCard.querySelector('[data-testid="learning-rating-link"]');
-                        const cardRect = firstCard.getBoundingClientRect();
-                        const coverRect = cover.getBoundingClientRect();
-                        const downloadRect = download.getBoundingClientRect();
+                const layout = await page.getByTestId('learning-book-list').evaluate((list) => {
+                    const firstCard = list.querySelector('[data-testid="learning-book-no-limit-holdem-advanced-zh"]');
+                    const cover = firstCard.querySelector('[data-testid="learning-book-cover"]');
+                    const download = firstCard.querySelector('[data-testid="learning-download-link"]');
+                    const rating = firstCard.querySelector('[data-testid="learning-rating-link"]');
+                    const cardRect = firstCard.getBoundingClientRect();
+                    const coverRect = cover.getBoundingClientRect();
+                    const downloadRect = download.getBoundingClientRect();
 
-                        return {
-                            columns: getComputedStyle(list).gridTemplateColumns.split(' ').length,
-                            cardWidth: cardRect.width,
-                            titleFontSize: parseFloat(getComputedStyle(firstCard.querySelector('h2')).fontSize),
-                            downloadInsideCard:
-                                downloadRect.left >= cardRect.left && downloadRect.right <= cardRect.right,
-                            ratingClickable: rating instanceof HTMLAnchorElement && rating.href.length > 0,
-                            coverAspectRatio: coverRect.width / coverRect.height,
-                        };
-                    });
+                    return {
+                        columns: getComputedStyle(list).gridTemplateColumns.split(' ').length,
+                        cardWidth: cardRect.width,
+                        titleFontSize: parseFloat(
+                            getComputedStyle(firstCard.querySelector('[data-testid="learning-book-title"]')).fontSize,
+                        ),
+                        downloadInsideCard: downloadRect.left >= cardRect.left && downloadRect.right <= cardRect.right,
+                        ratingClickable: rating instanceof HTMLAnchorElement && rating.href.length > 0,
+                        coverAspectRatio: coverRect.width / coverRect.height,
+                    };
+                });
 
                 expect(layout.columns).toBe(1);
                 expect(layout.cardWidth).toBeGreaterThanOrEqual(360);
@@ -178,15 +172,15 @@ test.describe('visual regression', () => {
 
             // 无交互场景应从页面顶部采集；有交互的场景（如术语表索引）可按其操作保留滚动位置。
             const hasInteraction = Boolean(
-                scenario.hoverSelector ||
-                scenario.hoverSelectors ||
-                scenario.clickSelector ||
-                scenario.clickSelectors ||
-                scenario.keyPressSelector ||
-                scenario.keyPressSelectors ||
-                scenario.focusSelector ||
-                scenario.focusSelectors ||
-                scenario.scrollToSelector,
+                scenario.hoverTestId ||
+                scenario.hoverTestIds ||
+                scenario.clickTestId ||
+                scenario.clickTestIds ||
+                scenario.keyPressTestId ||
+                scenario.keyPressTestIds ||
+                scenario.focusTestId ||
+                scenario.focusTestIds ||
+                scenario.scrollToTestId,
             );
             if (!hasInteraction) {
                 expect(await page.evaluate(() => window.scrollY)).toBe(0);
@@ -194,7 +188,7 @@ test.describe('visual regression', () => {
 
             if (scenario.label.includes('_glossary_definition')) {
                 const { footerBottom, pageBottom } = await page.evaluate(() => {
-                    const footer = document.querySelector('footer');
+                    const footer = document.querySelector('[data-testid="glossary-footer"]');
                     return {
                         footerBottom: footer.getBoundingClientRect().bottom + window.scrollY,
                         pageBottom: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
@@ -209,26 +203,28 @@ test.describe('visual regression', () => {
                 ).toBeLessThanOrEqual(1);
             }
 
-            for (const selector of scenario.singleLineSelectors ?? []) {
-                const lineCount = await page.locator(selector).evaluate((element) => {
+            for (const testId of scenario.singleLineTestIds ?? []) {
+                const lineCount = await page.getByTestId(testId).evaluate((element) => {
                     const range = document.createRange();
                     range.selectNodeContents(element);
                     return range.getClientRects().length;
                 });
-                expect(lineCount, `${selector} should render on one line`).toBe(1);
+                expect(lineCount, `${testId} should render on one line`).toBe(1);
             }
 
             if (scenario.label.includes('_learning_rating_')) {
                 const layout = await page
-                    .locator('[data-testid="learning-rating-link"]')
-                    .first()
+                    .getByTestId(`learning-book-no-limit-holdem-advanced-${scenario.locale === 'en' ? 'en' : 'zh'}`)
+                    .getByTestId('learning-rating-link')
                     .evaluate((link) => {
-                        const card = link.closest('article');
-                        const tooltip = link.querySelector('[role="tooltip"]');
+                        const card = link.closest('[data-testid^="learning-book-"]');
+                        const tooltip = link.querySelector('[data-testid="learning-rating-tooltip"]');
                         const linkRect = link.getBoundingClientRect();
                         const cardRect = card.getBoundingClientRect();
                         const tooltipRect = tooltip.getBoundingClientRect();
-                        const authorRect = card.querySelector('p').getBoundingClientRect();
+                        const authorRect = card
+                            .querySelector('[data-testid="learning-book-author"]')
+                            .getBoundingClientRect();
                         const downloadRect = card
                             .querySelector('[data-testid="learning-download-link"]')
                             .getBoundingClientRect();
@@ -268,19 +264,21 @@ test.describe('visual regression', () => {
                 await page.evaluate(
                     () =>
                         new Promise((resolve) => {
-                            document.querySelectorAll('[id^="group-"]').forEach((group) => {
-                                group.style.setProperty('content-visibility', 'visible', 'important');
-                                group.style.setProperty('contain-intrinsic-size', 'auto', 'important');
-                            });
+                            document
+                                .querySelectorAll<HTMLElement>('[data-testid^="glossary-group-"][data-glossary-group]')
+                                .forEach((group) => {
+                                    group.style.setProperty('content-visibility', 'visible', 'important');
+                                    group.style.setProperty('contain-intrinsic-size', 'auto', 'important');
+                                });
                             requestAnimationFrame(() => requestAnimationFrame(resolve));
                         }),
                 );
             }
 
             if (scenario.label === 'en_small-desktop_glossary') {
-                const bGroupLayout = await page.locator('#group-B > ul').evaluate((list) => {
-                    const items = Array.from(list.querySelectorAll(':scope > li'));
-                    const links = items.map((item) => item.querySelector('a'));
+                const bGroupLayout = await page.getByTestId('glossary-group-list-B').evaluate((list) => {
+                    const items = Array.from(list.querySelectorAll('[data-testid^="glossary-item-"]'));
+                    const links = items.map((item) => item.querySelector('[data-testid^="glossary-term-"]'));
                     const columnLefts = [
                         ...new Set(items.map((item) => Math.round(item.getBoundingClientRect().left))),
                     ];
@@ -329,7 +327,7 @@ test.describe('glossary mobile sticky layout', () => {
             label: 'zh_mobile_glossary_sticky_layout',
             url: `${BASE_URL}/glossary`,
             locale: 'zh',
-            readyPlaceholder: '搜索德州扑克术语',
+            readyTestId: 'glossary-header',
             waitForLoading: true,
             delay: 0,
             selectors: ['viewport'],
@@ -346,7 +344,7 @@ test.describe('glossary mobile sticky layout', () => {
         const layout = await page.evaluate(() => {
             const navbar = document.querySelector('[data-testid="navbar"]');
             const stickyIndex = document.querySelector('[data-testid="glossary-sticky-index"]');
-            const targetGroup = document.querySelector('#group-H');
+            const targetGroup = document.querySelector('[data-testid="glossary-group-H"]');
             const navbarRect = navbar.getBoundingClientRect();
             const stickyIndexRect = stickyIndex.getBoundingClientRect();
             const targetGroupRect = targetGroup.getBoundingClientRect();
@@ -384,7 +382,7 @@ test.describe('glossary index active state', () => {
                 label: `zh_${viewport.label}_glossary_index_active`,
                 url: `${BASE_URL}/glossary`,
                 locale: 'zh',
-                readyPlaceholder: '搜索德州扑克术语',
+                readyTestId: 'glossary-header',
                 waitForLoading: true,
                 delay: 0,
                 selectors: ['viewport'],
@@ -395,7 +393,7 @@ test.describe('glossary index active state', () => {
             await page.goto(scenario.url, { waitUntil: 'domcontentloaded' });
             await prepareAfterNavigate(page, scenario);
 
-            const letters = await page.locator('[data-testid^="glossary-letter-"]').allTextContents();
+            const letters = await page.getByTestId(/^glossary-letter-/).allTextContents();
             expect(letters.length).toBeGreaterThan(1);
             for (const letter of letters) {
                 const index = page.getByTestId(`glossary-letter-${letter}`);
@@ -410,11 +408,7 @@ test.describe('glossary index active state', () => {
 });
 
 test.describe('glossary VPIP index navigation', () => {
-    for (const [locale, readyPlaceholder] of [
-        ['zh', '搜索德州扑克术语'],
-        ['zh-TW', '搜尋德州撲克術語'],
-        ['en', 'Search glossary'],
-    ]) {
+    for (const locale of ['zh', 'zh-TW', 'en']) {
         for (const viewport of [
             { label: 'desktop', width: 1440, height: 900 },
             { label: 'tablet', width: 768, height: 1024 },
@@ -428,7 +422,7 @@ test.describe('glossary VPIP index navigation', () => {
                     label: `${locale}_${viewport.label}_glossary_vpip_index`,
                     url: `${BASE_URL}/glossary`,
                     locale,
-                    readyPlaceholder,
+                    readyTestId: 'glossary-header',
                     waitForLoading: true,
                     delay: 0,
                     selectors: ['viewport'],
@@ -447,7 +441,7 @@ test.describe('glossary VPIP index navigation', () => {
                     const stickyBottom = document
                         .querySelector('[data-testid="glossary-sticky-index"]')
                         .getBoundingClientRect().bottom;
-                    const group = document.querySelector('#group-V');
+                    const group = document.querySelector('[data-testid="glossary-group-V"]');
                     const term = document.querySelector('[data-testid="glossary-term-vpip"]');
                     const groupRect = group.getBoundingClientRect();
                     const termRect = term.getBoundingClientRect();
@@ -480,7 +474,7 @@ test.describe('learning mobile card layout', () => {
                 label: `zh_mobile-${width}_learning-layout`,
                 url: `${BASE_URL}/learning`,
                 locale: 'zh',
-                readyText: '无限德州扑克进阶指南',
+                readyTestId: 'learning-page',
                 delay: 0,
                 selectors: ['viewport'],
                 viewports: [viewport],
@@ -491,30 +485,33 @@ test.describe('learning mobile card layout', () => {
             await page.goto(scenario.url, { waitUntil: 'domcontentloaded' });
             await prepareAfterNavigate(page, scenario);
 
-            const layout = await page
-                .locator('section')
-                .filter({ has: page.locator('article') })
-                .evaluate((list) => {
-                    const cards = Array.from(list.querySelectorAll('article'));
-                    const cardWidths = cards.map((card) => card.getBoundingClientRect().width);
-                    const downloadLinksFit = cards.every((card) => {
-                        const cardRect = card.getBoundingClientRect();
-                        const linkRect = card
-                            .querySelector('[data-testid="learning-download-link"]')
-                            .getBoundingClientRect();
-                        return linkRect.left >= cardRect.left && linkRect.right <= cardRect.right;
-                    });
-
-                    return {
-                        columns: getComputedStyle(list).gridTemplateColumns.split(' ').length,
-                        minimumCardWidth: Math.min(...cardWidths),
-                        titleFontSizes: cards.map((card) =>
-                            parseFloat(getComputedStyle(card.querySelector('h2')).fontSize),
-                        ),
-                        downloadLinksFit,
-                        pageHasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
-                    };
+            const layout = await page.getByTestId('learning-book-list').evaluate((list) => {
+                const cards = Array.from(
+                    list.querySelectorAll(
+                        '[data-testid^="learning-book-"][data-testid$="-zh"], [data-testid="learning-book-no-limit-holdem-advanced-en"]',
+                    ),
+                );
+                const cardWidths = cards.map((card) => card.getBoundingClientRect().width);
+                const downloadLinksFit = cards.every((card) => {
+                    const cardRect = card.getBoundingClientRect();
+                    const linkRect = card
+                        .querySelector('[data-testid="learning-download-link"]')
+                        .getBoundingClientRect();
+                    return linkRect.left >= cardRect.left && linkRect.right <= cardRect.right;
                 });
+
+                return {
+                    columns: getComputedStyle(list).gridTemplateColumns.split(' ').length,
+                    minimumCardWidth: Math.min(...cardWidths),
+                    titleFontSizes: cards.map((card) =>
+                        parseFloat(
+                            getComputedStyle(card.querySelector('[data-testid="learning-book-title"]')).fontSize,
+                        ),
+                    ),
+                    downloadLinksFit,
+                    pageHasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+                };
+            });
 
             expect(layout.columns).toBe(1);
             expect(layout.minimumCardWidth).toBeGreaterThanOrEqual(360);
@@ -531,7 +528,7 @@ test.describe('learning mobile card layout', () => {
                 label: `en_mobile-${width}_learning-layout`,
                 url: `${BASE_URL}/learning`,
                 locale: 'en',
-                readyText: "No-Limit Hold'em For Advanced Players",
+                readyTestId: 'learning-page',
                 delay: 0,
                 selectors: ['viewport'],
                 viewports: [viewport],
@@ -543,7 +540,7 @@ test.describe('learning mobile card layout', () => {
             await prepareAfterNavigate(page, scenario);
 
             const layout = await page.getByTestId('learning-download-link').evaluate((link) => {
-                const cardRect = link.closest('article').getBoundingClientRect();
+                const cardRect = link.closest('[data-testid^="learning-book-"]').getBoundingClientRect();
                 const linkRect = link.getBoundingClientRect();
                 const label = link.querySelector('[data-testid="learning-download-label"]');
                 const range = document.createRange();
@@ -674,14 +671,13 @@ test.describe('homepage responsive breakpoint styles', () => {
             const loadingLeft = (await localDownloadControl.boundingBox()).x;
 
             releaseApkResponse();
-            const loadedControl = page.locator('a[data-testid="download-button-icon-link"]');
+            const loadedControl = page.getByTestId('download-button-icon-link');
             await expect(loadedControl).toBeVisible();
             const loadedLeft = (await loadedControl.boundingBox()).x;
 
             expect(loadedLeft).toBeCloseTo(loadingLeft, 1);
         });
     }
-
 });
 
 test.describe('screenshot image materialization', () => {
@@ -695,7 +691,11 @@ test.describe('screenshot image materialization', () => {
             const url = route.request().url();
             requestedUrls.push(url);
             if (url === imageUrls[1]) {
-                await route.fulfill({ status: 404, contentType: 'image/svg+xml', body: '' });
+                await route.fulfill({
+                    status: 404,
+                    contentType: 'image/svg+xml',
+                    body: '',
+                });
                 return;
             }
             await route.fulfill({
@@ -711,11 +711,11 @@ test.describe('screenshot image materialization', () => {
                 img { display: block; width: 10px; height: 10px; }
             </style>
             <div class="spacer"></div>
-            <img loading="lazy" src="${imageUrls[0]}" width="10" height="10">
+            <img data-testid="materialize-image-0" loading="lazy" src="${imageUrls[0]}" width="10" height="10">
             <div class="spacer"></div>
-            <img loading="lazy" src="${imageUrls[1]}" width="10" height="10">
+            <img data-testid="materialize-image-1" loading="lazy" src="${imageUrls[1]}" width="10" height="10">
             <div class="spacer"></div>
-            <img loading="lazy" src="${imageUrls[2]}" width="10" height="10">
+            <img data-testid="materialize-image-2" loading="lazy" src="${imageUrls[2]}" width="10" height="10">
         `);
         await page.evaluate(
             () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
@@ -725,7 +725,7 @@ test.describe('screenshot image materialization', () => {
         // Model the Chromium failure mode from CI: changing the property to eager does
         // not immediately schedule an off-screen request, so native lazy-load visibility
         // checks must observe each image after it is scrolled into the viewport.
-        await page.locator('img').evaluateAll((images) => {
+        await page.getByTestId(/^materialize-image-/).evaluateAll((images) => {
             for (const image of images) {
                 Object.defineProperty(image, 'loading', {
                     configurable: true,
@@ -738,11 +738,12 @@ test.describe('screenshot image materialization', () => {
         await page.evaluate(materializeImagesForScreenshot);
 
         expect(requestedUrls).toEqual(imageUrls);
-        const imageStates = await page
-            .locator('img')
-            .evaluateAll((images) =>
-                images.map((image) => ({ complete: image.complete, naturalWidth: image.naturalWidth })),
-            );
+        const imageStates = await page.getByTestId(/^materialize-image-/).evaluateAll((images) =>
+            images.map((image) => ({
+                complete: (image as HTMLImageElement).complete,
+                naturalWidth: (image as HTMLImageElement).naturalWidth,
+            })),
+        );
         expect(imageStates).toEqual([
             { complete: true, naturalWidth: 10 },
             { complete: true, naturalWidth: 0 },
@@ -753,14 +754,41 @@ test.describe('screenshot image materialization', () => {
 
 test.describe('tutorial step image lazy loading', () => {
     for (const viewport of [
-        { label: 'desktop-short-zh', width: 1024, height: 768, mobile: false, locale: 'zh' },
-        { label: 'desktop-short-en', width: 1024, height: 768, mobile: false, locale: 'en' },
-        { label: 'tablet-tall', width: 768, height: 1024, mobile: false, locale: 'zh' },
+        {
+            label: 'desktop-short-zh',
+            width: 1024,
+            height: 768,
+            mobile: false,
+            locale: 'zh',
+        },
+        {
+            label: 'desktop-short-en',
+            width: 1024,
+            height: 768,
+            mobile: false,
+            locale: 'en',
+        },
+        {
+            label: 'tablet-tall',
+            width: 768,
+            height: 1024,
+            mobile: false,
+            locale: 'zh',
+        },
         { label: 'mobile', width: 390, height: 844, mobile: true, locale: 'zh' },
     ]) {
         test(`${viewport.label} only starts images in or near the initial viewport`, async ({ page, context }) => {
-            await page.setViewportSize({ width: viewport.width, height: viewport.height });
-            await context.addCookies([{ name: LANGUAGE_COOKIE_KEY, value: viewport.locale, url: `${BASE_URL}/` }]);
+            await page.setViewportSize({
+                width: viewport.width,
+                height: viewport.height,
+            });
+            await context.addCookies([
+                {
+                    name: LANGUAGE_COOKIE_KEY,
+                    value: viewport.locale,
+                    url: `${BASE_URL}/`,
+                },
+            ]);
             if (viewport.mobile) {
                 await page.addInitScript((userAgent) => {
                     Object.defineProperty(Navigator.prototype, 'userAgent', {
@@ -784,14 +812,15 @@ test.describe('tutorial step image lazy loading', () => {
                 await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             });
 
-            const stepImages = page.locator('img[data-tutorial-step-image]');
+            const stepImages = page.getByTestId(/^(tutorial-step-image-[a-z_]+|tutorial-search-image)$/);
             await expect(stepImages).toHaveCount(7);
             const initialImages = await stepImages.evaluateAll((images) =>
                 images.map((image) => ({
                     loading: image.getAttribute('loading'),
                     loaded: image.dataset.loaded === 'true',
                     requestedUrl: new URL(
-                        image.closest('picture').querySelector('source[data-tutorial-src-set]').dataset.tutorialSrcSet,
+                        image.closest('[data-testid$="-picture"]').querySelector<HTMLSourceElement>('[data-testid$="-source"]').dataset
+                            .tutorialSrcSet,
                         document.baseURI,
                     ).href,
                     top: image.getBoundingClientRect().top,
@@ -831,17 +860,19 @@ test.describe('tutorial step image lazy loading', () => {
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         });
 
-        const stepImages = page.locator('img[data-tutorial-step-image]');
-        const deferredIndex = await stepImages.evaluateAll((images) =>
-            images.findIndex((image) => image.dataset.loaded === 'false'),
+        const stepImages = page.getByTestId(/^(tutorial-step-image-[a-z_]+|tutorial-search-image)$/);
+        const deferredTestId = await stepImages.evaluateAll(
+            (images) => images.find((image) => image.dataset.loaded === 'false')?.dataset.testid,
         );
-        expect(deferredIndex).toBeGreaterThanOrEqual(0);
-        const deferredStepImage = stepImages.nth(deferredIndex);
+        expect(deferredTestId).toBeTruthy();
+        const deferredStepImage = page.getByTestId(deferredTestId);
+        await expect(deferredStepImage).toHaveCount(1);
         await expect(deferredStepImage).toHaveAttribute('loading', 'lazy');
         const webpUrl = await deferredStepImage.evaluate(
             (image) =>
                 new URL(
-                    image.closest('picture').querySelector('source[data-tutorial-src-set]').dataset.tutorialSrcSet,
+                    image.closest('[data-testid$="-picture"]').querySelector<HTMLSourceElement>('[data-testid$="-source"]').dataset
+                        .tutorialSrcSet,
                     document.baseURI,
                 ).href,
         );
@@ -862,15 +893,15 @@ test.describe('tutorial step image lazy loading', () => {
         expect(await deferredStepImage.evaluate((image) => image.getBoundingClientRect().top)).toBeGreaterThan(
             viewport.height,
         );
-        expect(await deferredStepImage.evaluate((image) => image.naturalWidth)).toBe(0);
+        expect(await deferredStepImage.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBe(0);
 
-        await expect.poll(() => deferredStepImage.evaluate((image) => image.naturalWidth > 0)).toBe(true);
+        await expect.poll(() => deferredStepImage.evaluate((image) => (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
         expect(await deferredStepImage.evaluate((image) => image.getBoundingClientRect().top)).toBeGreaterThan(
             viewport.height,
         );
 
         await deferredStepImage.scrollIntoViewIfNeeded();
-        expect(await deferredStepImage.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+        expect(await deferredStepImage.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     });
 
     test('mobile viewport defers step images and loads every image while scrolling', async ({ page, context }) => {
@@ -898,11 +929,11 @@ test.describe('tutorial step image lazy loading', () => {
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         });
 
-        const stepImages = page.locator('img[data-tutorial-step-image]');
+        const stepImages = page.getByTestId(/^(tutorial-step-image-[a-z_]+|tutorial-search-image)$/);
         await expect(stepImages).toHaveCount(7);
         const webpUrls = await stepImages.evaluateAll((images) =>
             images.map((image) => {
-                const source = image.closest('picture').querySelector('source[data-tutorial-src-set]');
+                const source = image.closest('[data-testid$="-picture"]').querySelector<HTMLSourceElement>('[data-testid$="-source"]');
                 return new URL(source.dataset.tutorialSrcSet, document.baseURI).href;
             }),
         );
@@ -930,12 +961,14 @@ test.describe('tutorial step image lazy loading', () => {
         expect(webpUrls.filter((url) => imageRequests.has(url)).length).toBeLessThan(7);
         const initialDocumentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
-        for (let index = 0; index < (await stepImages.count()); index += 1) {
-            const image = stepImages.nth(index);
+        const imageTestIds = await stepImages.evaluateAll((images) => images.map((image) => image.dataset.testid));
+        for (const testId of imageTestIds) {
+            const image = page.getByTestId(testId);
+            await expect(image).toHaveCount(1);
             await image.scrollIntoViewIfNeeded();
             await expect(image).toHaveAttribute('data-loaded', 'true');
             await expect
-                .poll(() => image.evaluate((element) => element.complete && element.naturalWidth > 0))
+                .poll(() => image.evaluate((element) => (element as HTMLImageElement).complete && (element as HTMLImageElement).naturalWidth > 0))
                 .toBe(true);
         }
 
@@ -959,10 +992,14 @@ test.describe('loading spinner', () => {
 
         // 'commit' 只等导航提交、不等脚本执行，否则会连同上面的延迟一起卡在 goto 里
         await page.goto(`${BASE_URL}/`, { waitUntil: 'commit' });
-        await page.waitForSelector('[data-testid="boot-loading"]', { state: 'visible', timeout: 10000 });
+        await page.getByTestId('boot-loading').waitFor({ state: 'visible', timeout: 10000 });
         await disableAnimations.apply(page);
 
-        const screenshot = await page.screenshot({ animations: 'disabled', caret: 'hide', scale: 'css' });
+        const screenshot = await page.screenshot({
+            animations: 'disabled',
+            caret: 'hide',
+            scale: 'css',
+        });
         expect(screenshot).toMatchSnapshot('zh_desktop_boot_loading.png');
     });
 
@@ -983,13 +1020,17 @@ test.describe('loading spinner', () => {
         });
 
         await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('[data-testid="loading-spinner"]', { state: 'visible', timeout: 10000 });
+        await page.getByTestId('loading-spinner').waitFor({ state: 'visible', timeout: 10000 });
         // 兜底 boot-loading 会一直覆盖到首屏内容提交（见 src/bootLoading.ts），
         // 此处手动移除，以便对其下层的 Suspense fallback（LoadingSpinner fullPage）截图
         await page.evaluate(() => document.getElementById('boot-loading')?.remove());
         await disableAnimations.apply(page);
 
-        const screenshot = await page.screenshot({ animations: 'disabled', caret: 'hide', scale: 'css' });
+        const screenshot = await page.screenshot({
+            animations: 'disabled',
+            caret: 'hide',
+            scale: 'css',
+        });
         expect(screenshot).toMatchSnapshot('zh_desktop_fullpage_loading.png');
     });
 });
@@ -1009,7 +1050,7 @@ test.describe('glossary cold deck', () => {
                     label: `${locale}_${viewport.label}_cold_deck`,
                     url: `${BASE_URL}/glossary/${locale}/${slug}`,
                     locale,
-                    readySelector: '[data-testid="definition-body"]',
+                    readyTestId: 'definition-body',
                     waitForLoading: true,
                     delay: 0,
                     selectors: ['document'],
@@ -1018,21 +1059,27 @@ test.describe('glossary cold deck', () => {
                 await prepareBeforeNavigate(page, context, scenario, viewport);
                 await page.goto(scenario.url, { waitUntil: 'domcontentloaded' });
                 await prepareAfterNavigate(page, scenario);
-                await expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
+                await expect(page.getByTestId('definition-term-name')).toHaveCount(1);
+                await expect(page.getByTestId('definition-term-name')).toBeVisible();
+                await expect(page.getByTestId('definition-term-name')).toHaveText(name);
                 await expect(page).toHaveScreenshot(`${locale}-${viewport.label}-cold-deck.png`, { fullPage: true });
 
                 for (const source of sources) {
                     await page.goto(`${BASE_URL}/glossary/${locale}/${source}`);
                     const topics = page.getByTestId('related-topics');
-                    const link = topics.getByRole('link', { name, exact: true });
+                    const link = topics.getByTestId(`related-topic-${slug}`);
+                    await expect(link).toHaveCount(1);
+                    await expect(link).toHaveText(name);
                     await expect(link).toHaveAttribute('href', `/glossary/${locale}/${slug}`);
                     if (locale !== 'en') await expect(topics).not.toContainText('Cold Deck');
                     await link.click();
-                    await expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
+                    await expect(page.getByTestId('definition-term-name')).toHaveCount(1);
+                    await expect(page.getByTestId('definition-term-name')).toBeVisible();
+                    await expect(page.getByTestId('definition-term-name')).toHaveText(name);
                 }
                 await page.goto(`${BASE_URL}/glossary`);
                 await page.getByTestId(`glossary-letter-${letter}`).click();
-                const term = page.locator(`[data-glossary-group="${letter}"]`).getByTestId(`glossary-term-${slug}`);
+                const term = page.getByTestId(`glossary-group-${letter}`).getByTestId(`glossary-term-${slug}`);
                 await expect(term).toBeVisible();
                 await expect(term).toHaveAttribute('href', `/glossary/${locale}/${slug}`);
             });

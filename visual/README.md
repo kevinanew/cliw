@@ -25,3 +25,15 @@ VISUAL_BASE_URL=https://example.com VISUAL_LOCALES=zh VISUAL_VIEWPORTS=desktop p
 基准图需要在 Linux 容器中更新，例如把仓库挂载到上述 Playwright 镜像、设置 `VISUAL_BASE_URL` 后运行 `pnpm run reference:ci`（重建所有选中截图）或 `pnpm run approve:ci`（只接受超阈值差异）。建议仅更新实际变更的语言与视口。`VISUAL_FILTER` 可进一步按场景名称过滤。`VISUAL_LOCALES=all` 与 `VISUAL_VIEWPORTS=all` 选择完整矩阵。
 
 测试使用固定数据拦截 `/apk/index.json`，并为书籍封面准备稳定资源；快照容差为 0.3%。`pnpm run test:scenarios` 验证场景矩阵，`pnpm run test:flake-metrics` 验证重试指标生成器。
+
+## 页面定位契约
+
+视觉场景的业务控件统一按 `data-testid` 定位。配置使用 `readyTestId`、`clickTestId` / `clickTestIds`、
+`hoverTestId`、`focusTestId`、`keyPressTestId`、`scrollIntoViewTestId` 和 `singleLineTestIds`。
+存在重复子控件时，用 `{ within: '唯一容器 ID', testId: '子控件 ID' }` 指定范围。
+`postInteractionWait` / `postInteractionHide` 也填写 test ID，不接收 CSS 或固定等待毫秒数。
+`expectedReadyText` 是定位之后的内容断言值，不参与定位。
+
+学习页评分按书籍业务 ID 选择，术语分组和相关主题按字母或 slug 选择，教程图片按步骤 ID 选择。
+缺失标识应在 `laiwan_io_web` 补齐并部署，再运行完整视觉回归；不要通过更新基准、CSS 兜底或忽略失败绕过缺口。
+全页截图的资源稳定化、所有链接的巡检、版本 meta 与网络响应检查仍按其资源类型读取，不属于业务控件定位。

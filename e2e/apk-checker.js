@@ -17,7 +17,7 @@ const { ENV, URLS } = require('./env');
 
 const startUrl = URLS[ENV];
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 };
-const APK_LINK_SELECTOR = 'a[data-testid="download-button-icon-link"][href*=".apk"]';
+const APK_LINK_TEST_ID = 'download-button-icon-link';
 const DEFAULT_BUDGET_MS = 3000;
 const WARMUP_RUNS = 1;
 const SAMPLE_RUNS = 3;
@@ -87,15 +87,15 @@ function isWithinBudget(medianMs, budgetMs) {
 
 async function dumpDiagnostics(page) {
     const hrefs = await page
-        .locator('a[data-testid="download-button-icon-link"]')
+        .getByTestId('download-button-icon-link')
         .evaluateAll((els) => els.map((el) => el.getAttribute('href')))
         .catch(() => []);
     const versionText = await page
-        .locator('[data-testid="home-version-text"]')
+        .getByTestId('home-version-text')
         .textContent()
         .catch(() => null);
     const homeTitle = await page
-        .locator('[data-testid="home-title"]')
+        .getByTestId('home-title')
         .textContent()
         .catch(() => null);
 
@@ -152,7 +152,7 @@ async function measureApkReadyOnce(browser, homeUrl) {
 
         // 从首页主 UI 出现起算：不把整页 JS 下载算进「版本信息过慢」
         const startedAt = Date.now();
-        const apkLocator = page.locator(APK_LINK_SELECTOR);
+        const apkLocator = page.getByTestId(APK_LINK_TEST_ID);
 
         const indexResponse = await indexResponsePromise.catch(() => null);
         if (!indexResponse) {

@@ -5,7 +5,7 @@ const MAX_DIFF_PIXEL_RATIO = 0.003;
 
 module.exports = defineConfig({
     testDir: '.',
-    testMatch: 'visual.spec.js',
+    testMatch: 'visual.spec.ts',
     fullyParallel: true,
     // CI 服务器内存足够时，通过 VISUAL_WORKERS 并行运行截图场景。
     // 本地默认只启用一个 worker，避免占用过多内存。

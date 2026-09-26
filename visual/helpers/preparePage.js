@@ -1,3 +1,4 @@
+const { expect } = require('@playwright/test');
 const { LANGUAGE_COOKIE_KEY } = require('../scenarios');
 const disableAnimations = require('./disableAnimations');
 const clickAndHoverHelper = require('./clickAndHoverHelper');
@@ -12,11 +13,15 @@ const loadCookies = require('./loadCookies');
  */
 async function materializeImagesForScreenshot() {
     function materializeTutorialImages() {
-        const tutorialImages = Array.from(document.querySelectorAll('img[data-tutorial-step-image]'));
+        const tutorialImages = Array.from(
+            document.querySelectorAll(
+                '[data-testid^="tutorial-step-image-"][data-tutorial-step-image], [data-testid="tutorial-search-image"]',
+            ),
+        );
         for (const img of tutorialImages) {
             if (img.getAttribute('src')) continue;
 
-            const source = img.closest('picture')?.querySelector('source[data-tutorial-src-set]');
+            const source = img.closest('[data-testid$="-picture"]')?.querySelector('[data-testid$="-source"]');
             if (source) source.srcset = source.dataset.tutorialSrcSet;
             img.src = img.dataset.tutorialSrc;
             img.dataset.loaded = 'true';
@@ -132,29 +137,17 @@ async function prepareBeforeNavigate(page, context, scenario, viewport) {
 async function prepareAfterNavigate(page, scenario) {
     console.log(`SCENARIO > ${scenario.label}`);
 
-    await page.waitForSelector('#laiwan', { timeout: 30000 });
     await page.waitForLoadState('load');
-
     if (scenario.waitForLoading) {
-        await page.waitForFunction(() => !document.querySelector('[role="progressbar"]'), {
+        await expect(page.getByTestId('loading-spinner')).toHaveCount(0, {
             timeout: 30000,
         });
     }
-
-    if (scenario.readySelector) {
-        await page.locator(scenario.readySelector).first().waitFor({
-            state: 'visible',
-            timeout: 30000,
-        });
-    } else if (scenario.readyPlaceholder) {
-        await page.locator(`input[placeholder="${scenario.readyPlaceholder}"]:visible`).first().waitFor({
-            timeout: 30000,
-        });
-    } else if (scenario.readyText) {
-        await page.getByText(scenario.readyText, { exact: true }).first().waitFor({
-            state: 'visible',
-            timeout: 30000,
-        });
+    const ready = page.getByTestId(scenario.readyTestId);
+    await expect(ready).toHaveCount(1, { timeout: 30000 });
+    await expect(ready).toBeVisible({ timeout: 30000 });
+    if (scenario.expectedReadyText) {
+        await expect(ready).toContainText(scenario.expectedReadyText, { timeout: 30000 });
     }
 
     await page.evaluate(async () => {

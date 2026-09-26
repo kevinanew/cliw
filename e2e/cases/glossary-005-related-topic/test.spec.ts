@@ -1,14 +1,18 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test('GLOSSARY-005: 相关主题入口', async ({ page }) => {
     await test.step('准备 A-Game 详情', async () => {
-        await page.goto('/glossary/en/agame?lang=en', { waitUntil: 'domcontentloaded' });
+        await page.goto('/glossary/en/agame?lang=en', {
+            waitUntil: 'domcontentloaded',
+        });
         await expect(page.getByTestId('definition-term-name')).toHaveText('A-Game');
         await expect(page.getByTestId('related-topics')).toHaveCount(1);
     });
     await test.step('打开 Z-game 相关主题', async () => {
-        const related = page.getByTestId('related-topics').getByRole('link', { name: 'Z-game' });
+        const related = page.getByTestId('related-topics').getByTestId('related-topic-zgame');
         await expect(related).toHaveCount(1);
+        await expect(related).toHaveText('Z-game');
+        await expect(related).toHaveAttribute('href', '/glossary/en/zgame');
         await related.click();
     });
     await test.step('断言相关术语详情', async () => {

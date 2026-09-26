@@ -11,7 +11,7 @@ module.exports = {
                 el.style.transform = 'none';
             });
 
-            const videos = Array.from(document.querySelectorAll('video'));
+            const videos = Array.from(document.querySelectorAll('[data-testid="video-background-video"]'));
             if (videos.length === 0) {
                 return;
             }

@@ -110,7 +110,7 @@ async function assertRetryUiOnChunkFailure(browser, homeUrl, path) {
         await retryButton.waitFor({ state: 'visible', timeout: 5000 });
 
         const nprogressHidden = await page.evaluate(() => {
-            const el = document.querySelector('#nprogress');
+            const el = document.querySelector('[data-testid="route-progress"]');
             if (!el) {
                 return true;
             }
@@ -121,7 +121,7 @@ async function assertRetryUiOnChunkFailure(browser, homeUrl, path) {
         if (!nprogressHidden) {
             // 允许短暂残留，但不应在错误 UI 出现后仍卡在「进行中」主条
             const barActive = await page.evaluate(() => {
-                const bar = document.querySelector('#nprogress .bar');
+                const bar = document.querySelector('[data-testid="route-progress-bar"]');
                 return Boolean(bar) && window.getComputedStyle(bar).display !== 'none';
             });
             if (barActive) {
@@ -130,7 +130,7 @@ async function assertRetryUiOnChunkFailure(browser, homeUrl, path) {
                     setTimeout(resolve, 500);
                 });
                 const stillActive = await page.evaluate(() => {
-                    const el = document.querySelector('#nprogress');
+                    const el = document.querySelector('[data-testid="route-progress"]');
                     if (!el) {
                         return false;
                     }

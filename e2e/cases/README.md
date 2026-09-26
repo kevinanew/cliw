@@ -28,10 +28,10 @@ e2e/
 │   ├── playwright.config.js
 │   ├── glossary-001-search/
 │   │   ├── README.md
-│   │   └── test.spec.js
+│   │   └── test.spec.ts
 │   ├── glossary-002-detail-and-back/
 │   │   ├── README.md
-│   │   └── test.spec.js
+│   │   └── test.spec.ts
 │   └── _shared/                    # 有实际复用需求时再添加
 └── reports/
     └── <运行时间>/
@@ -42,7 +42,7 @@ e2e/
 - 文件夹使用 `<功能>-<三位编号>-<场景>`，小写英文与连字符，例如 `glossary-001-search`。
 - 案例编号对应 `GLOSSARY-001`，出现在说明、测试名称和运行报告中；新增编号不挤占旧编号，删除的编号不复用。
 - 一个 case 描述一个用户场景及其预期，可以包含多个连续步骤。搜索成功和搜索无结果属于两个 case；同一流程的桌面与手机覆盖使用 Playwright projects，不复制文件夹。
-- 每个真实案例至少有 `README.md` 和 `test.spec.js`，阅读一个文件夹即可了解目的、操作与断言。
+- 每个真实案例至少有 `README.md` 和 `test.spec.ts`，阅读一个文件夹即可了解目的、操作与断言。
 
 ## 案例说明模板
 
@@ -82,7 +82,7 @@ e2e/
 
 ## 测试代码约定
 
-- `test.spec.js` 中按准备、操作、断言顺序编写，使用 `test.step()` 对应说明中的步骤。步骤不能拆成依赖前序状态的多个 `test()`。
+- `test.spec.ts` 中按准备、操作、断言顺序编写，使用 `test.step()` 对应说明中的步骤。步骤不能拆成依赖前序状态的多个 `test()`。
 - 所有 DOM 定位使用 `getByTestId()`；唯一目标先断言 `toHaveCount(1)`。缺失或匹配不唯一必须失败，不能改用其他定位方式、跳过测试或标记为预期失败。
 - 简单数据留在 spec。只有确有需要时才在当前 case 添加 `data.js`、`helpers.js` 或 `fixtures/`。
 - 跨案例的公共逻辑放在 `_shared/`，只有实际重复出现后才提取；case 之间不互相导入。
@@ -91,7 +91,7 @@ e2e/
 
 ## 运行与证据
 
-生成测试时，在 `cases/playwright.config.js` 中使用 `testDir: '.'` 和 `testMatch: '**/test.spec.js'`，并在 `e2e/package.json` 新增 `e2e:functional` 命令：
+生成测试时，在 `cases/playwright.config.js` 中使用 `testDir: '.'` 和 `testMatch: '**/test.spec.{js,ts}'`，并在 `e2e/package.json` 新增 `e2e:functional` 命令：
 
 ```text
 playwright test --config cases/playwright.config.js
@@ -101,7 +101,7 @@ playwright test --config cases/playwright.config.js
 
 ```sh
 pnpm run e2e:functional
-pnpm run e2e:functional glossary-001-search/test.spec.js
+pnpm run e2e:functional glossary-006-search-boundaries/test.spec.ts
 ```
 
 目标地址从 `E2E_BASE_URL` 读取。报告、截图与 runner 产物统一输出到 `e2e/reports/`，每次运行独立目录，通过案例编号关联结果。CI 从此目录上传允许公开的报告；遵循仓库已有约定，不上传登录状态或 trace。

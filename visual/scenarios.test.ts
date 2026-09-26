@@ -14,8 +14,8 @@ import {
     GLOSSARY_DEFINITION_TERMS,
     GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO,
     GLOSSARY_SEARCH_QUERIES,
-    GLOSSARY_SEARCH_READY_SELECTORS,
-    GLOSSARY_SEARCH_HIDE_SELECTORS,
+    GLOSSARY_SEARCH_READY_TEST_IDS,
+    GLOSSARY_SEARCH_HIDE_TEST_IDS,
     resolveLocales,
     resolveViewports,
     scenarioLabel,
@@ -83,8 +83,14 @@ describe('resolveViewports', () => {
 });
 
 describe('visual scenarios', () => {
-    const allScenarios = buildScenarios('http://127.0.0.1:8080', { localesEnv: 'all', viewportsEnv: 'all' });
-    const zhScenarios = buildScenarios('http://127.0.0.1:8080', { localesEnv: 'zh', viewportsEnv: 'all' });
+    const allScenarios = buildScenarios('http://127.0.0.1:8080', {
+        localesEnv: 'all',
+        viewportsEnv: 'all',
+    });
+    const zhScenarios = buildScenarios('http://127.0.0.1:8080', {
+        localesEnv: 'zh',
+        viewportsEnv: 'all',
+    });
     const definitionScenarioCount = LOCALES.length * VIEWPORTS.length;
     const definitionNotFoundCount = LOCALES.length * VIEWPORTS.length;
     const searchFilterScenarioCount = LOCALES.length * VIEWPORTS.length;
@@ -180,7 +186,7 @@ describe('visual scenarios', () => {
             expect(scenario.locale).toMatch(/^(zh|zh-TW|en)$/);
             expect(scenario.label.startsWith(`${scenario.locale}_`)).toBe(true);
             expect(scenario.label).toContain(`_${scenario.viewports[0].label}_`);
-            const hasReadyCheck = Boolean(scenario.readyText || scenario.readyPlaceholder || scenario.readySelector);
+            const hasReadyCheck = Boolean(scenario.readyTestId);
             expect(hasReadyCheck).toBe(true);
         });
     });
@@ -198,7 +204,11 @@ describe('visual scenarios', () => {
 
     test('small-desktop 严格为 1024×768，覆盖三语基础页面', () => {
         const smallDesktop = VIEWPORTS.find((viewport) => viewport.label === 'small-desktop');
-        expect(smallDesktop).toEqual({ label: 'small-desktop', width: 1024, height: 768 });
+        expect(smallDesktop).toEqual({
+            label: 'small-desktop',
+            width: 1024,
+            height: 768,
+        });
 
         const scenarios = allScenarios.filter((scenario) => scenario.viewports[0].label === 'small-desktop');
         expect(scenarios).toHaveLength(LOCALES.length * 13);
@@ -206,7 +216,11 @@ describe('visual scenarios', () => {
     });
 
     test('Pixel 9 412×923 覆盖三语基础页面', () => {
-        expect(PIXEL_9_LEARNING_VIEWPORT).toEqual({ label: 'pixel-9', width: 412, height: 923 });
+        expect(PIXEL_9_LEARNING_VIEWPORT).toEqual({
+            label: 'pixel-9',
+            width: 412,
+            height: 923,
+        });
 
         const scenario = allScenarios.find((item) => item.label === 'zh_pixel-9_learning');
         expect(scenario).toBeDefined();
@@ -233,7 +247,7 @@ describe('visual scenarios', () => {
 
         expect(menuOpenScenario).toBeDefined();
         expect(menuOpenScenario!.label).toBe('zh_mobile_homepage_menu_open');
-        expect(menuOpenScenario!.clickSelector).toBe('[data-testid="navbar-mobile-menu-button"]');
+        expect(menuOpenScenario!.clickTestId).toBe('navbar-mobile-menu-button');
         expect(menuOpenScenario!.postInteractionWait).toBe(MOBILE_MENU_OPEN_SCENARIO.postInteractionWait);
         expect(menuOpenScenario!.viewports).toEqual([
             VIEWPORTS.find((viewport) => viewport.label === MOBILE_MENU_OPEN_SCENARIO.viewportLabel),
@@ -247,8 +261,8 @@ describe('visual scenarios', () => {
 
         expect(scenario).toBeDefined();
         expect(scenario!.label).toBe('zh_mobile_homepage_language_switch_en');
-        expect(scenario!.clickSelectors).toEqual(MOBILE_LANGUAGE_SWITCH_SCENARIO.clickSelectors);
-        expect(scenario!.postInteractionHide).toBe('[data-testid="navbar-mobile-menu"]');
+        expect(scenario!.clickTestIds).toEqual(MOBILE_LANGUAGE_SWITCH_SCENARIO.clickTestIds);
+        expect(scenario!.postInteractionHide).toBe('navbar-mobile-menu');
         expect(scenario!.selectors).toEqual(['viewport']);
     });
 
@@ -272,7 +286,7 @@ describe('visual scenarios', () => {
 
         expect(drawerScenario).toBeDefined();
         expect(drawerScenario!.label).toBe('zh_mobile_tutorial_drawer_open');
-        expect(drawerScenario!.clickSelector).toBe('[data-testid="mobile-nav-menu-button"]');
+        expect(drawerScenario!.clickTestId).toBe('mobile-nav-menu-button');
         expect(drawerScenario!.postInteractionWait).toBe(TUTORIAL_MOBILE_DRAWER_OPEN_SCENARIO.postInteractionWait);
         expect(drawerScenario!.userAgent).toBeUndefined();
         expect(drawerScenario!.selectors).toEqual(['viewport']);
@@ -302,9 +316,15 @@ describe('visual scenarios', () => {
         expect(scenarios).toHaveLength(LOCALES.length * VIEWPORTS.length);
         scenarios.forEach((scenario) => {
             if (WIDE_VIEWPORT_LABELS.includes(scenario.viewports[0].label)) {
-                expect(scenario.hoverSelector).toBe('article:first-of-type [data-testid="learning-rating-link"]');
+                expect(scenario.hoverTestId).toEqual({
+                    within: `learning-book-no-limit-holdem-advanced-${scenario.locale === 'en' ? 'en' : 'zh'}`,
+                    testId: 'learning-rating-link',
+                });
             } else {
-                expect(scenario.focusSelector).toBe('article:first-of-type [data-testid="learning-rating-link"]');
+                expect(scenario.focusTestId).toEqual({
+                    within: `learning-book-no-limit-holdem-advanced-${scenario.locale === 'en' ? 'en' : 'zh'}`,
+                    testId: 'learning-rating-link',
+                });
             }
         });
         scenarios.forEach((scenario) => expect(scenario.selectors).toEqual(['viewport']));
@@ -318,7 +338,7 @@ describe('visual scenarios', () => {
             const currentScenarios = clickIndexScenarios.filter((s) => s.label.endsWith(`_${config.labelSuffix}`));
             expect(currentScenarios).toHaveLength(6);
             currentScenarios.forEach((scenario) => {
-                expect(scenario.clickSelector).toBe(config.clickSelector);
+                expect(scenario.clickTestId).toBe(config.clickTestId);
                 expect(scenario.selectors).toEqual(['viewport']);
                 expect(scenario.postInteractionWait).toBe(config.postInteractionWait);
                 expect(WIDE_VIEWPORT_LABELS).toContain(scenario.viewports[0].label);
@@ -340,7 +360,7 @@ describe('visual scenarios', () => {
                 );
                 expect(scenario).toBeDefined();
                 expect(scenario!.url).toBe(`http://127.0.0.1:8080/glossary/${locale.code}/${termConfig.term}`);
-                expect(scenario!.readyText).toBe(termConfig.readyText);
+                expect(scenario!.readyTestId).toBe('definition-term-name');
                 expect(scenario!.waitForLoading).toBe(true);
             });
         });
@@ -361,13 +381,13 @@ describe('visual scenarios', () => {
                 expect(scenario!.url).toBe(
                     `http://127.0.0.1:8080/glossary/${locale.code}/${GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO.term}`,
                 );
-                expect(scenario!.readySelector).toBe(GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO.readySelector);
+                expect(scenario!.readyTestId).toBe(GLOSSARY_DEFINITION_NOT_FOUND_SCENARIO.readyTestId);
                 expect(scenario!.waitForLoading).toBe(true);
             }),
         );
     });
 
-    test('术语表搜索过滤场景会用 keyPressSelector 输入查询并截取视口', () => {
+    test('术语表搜索过滤场景会用 keyPressTestId 输入查询并截取视口', () => {
         const searchScenarios = allScenarios.filter((scenario) => scenario.label.endsWith('_search_filter'));
 
         expect(searchScenarios).toHaveLength(searchFilterScenarioCount);
@@ -377,21 +397,21 @@ describe('visual scenarios', () => {
                     (item) => item.label === scenarioLabel(locale, viewport, 'glossary', 'search_filter'),
                 );
                 expect(scenario).toBeDefined();
-                expect(scenario!.keyPressSelector).toEqual({
-                    selector: NARROW_VIEWPORT_LABELS.includes(viewport.label)
-                        ? '[data-testid="glossary-mobile-search-input"]'
-                        : '[data-testid="glossary-search-input"]',
+                expect(scenario!.keyPressTestId).toEqual({
+                    testId: NARROW_VIEWPORT_LABELS.includes(viewport.label)
+                        ? 'glossary-mobile-search-input'
+                        : 'glossary-search-input',
                     keyPress: GLOSSARY_SEARCH_QUERIES[locale.code as keyof typeof GLOSSARY_SEARCH_QUERIES],
                 });
                 expect(scenario!.selectors).toEqual(['viewport']);
-                const readySelector =
-                    GLOSSARY_SEARCH_READY_SELECTORS[locale.code as keyof typeof GLOSSARY_SEARCH_READY_SELECTORS];
-                expect(scenario!.postInteractionWait).toBe(readySelector);
-                expect(scenario!.scrollIntoViewSelector).toBe(
-                    viewport.label === 'small-desktop' ? readySelector : undefined,
+                const readyTestId =
+                    GLOSSARY_SEARCH_READY_TEST_IDS[locale.code as keyof typeof GLOSSARY_SEARCH_READY_TEST_IDS];
+                expect(scenario!.postInteractionWait).toBe(readyTestId);
+                expect(scenario!.scrollIntoViewTestId).toBe(
+                    viewport.label === 'small-desktop' ? readyTestId : undefined,
                 );
                 expect(scenario!.postInteractionHide).toBe(
-                    GLOSSARY_SEARCH_HIDE_SELECTORS[locale.code as keyof typeof GLOSSARY_SEARCH_HIDE_SELECTORS],
+                    GLOSSARY_SEARCH_HIDE_TEST_IDS[locale.code as keyof typeof GLOSSARY_SEARCH_HIDE_TEST_IDS],
                 );
             });
         });
