@@ -668,12 +668,15 @@ test.describe('homepage responsive breakpoint styles', () => {
             });
 
             const localDownloadControl = page.getByTestId('download-button-icon-link');
-            const loadingLeft = (await localDownloadControl.boundingBox()).x;
+            await expect(localDownloadControl).toHaveAttribute('aria-disabled', 'true');
+            const loadingLeft = await localDownloadControl.evaluate((element) => element.getBoundingClientRect().x);
 
             releaseApkResponse();
-            const loadedControl = page.getByTestId('download-button-icon-link');
+            // APK 响应后 React 会把 span 替换为 a；必须等待新链接，避免读到正在卸载的旧节点。
+            const loadedControl = page.locator('a[data-testid="download-button-icon-link"]');
             await expect(loadedControl).toBeVisible();
-            const loadedLeft = (await loadedControl.boundingBox()).x;
+            await expect(loadedControl).toHaveAttribute('href', /\.apk$/);
+            const loadedLeft = await loadedControl.evaluate((element) => element.getBoundingClientRect().x);
 
             expect(loadedLeft).toBeCloseTo(loadingLeft, 1);
         });
