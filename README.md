@@ -6,6 +6,12 @@
 
 开发规范见 [AGENTS.md](AGENTS.md)。
 
+## 与官网仓库的 E2E 分工
+
+`laiwan_io_web` 内禁止使用 Playwright。官网需要 Playwright、内存占用较高或运行耗时较长的 E2E 统一放在本仓库，浏览器功能用例由 `e2e/` 维护，视觉回归由 `visual/` 维护，配置、专用依赖、执行任务及运行说明也在这里维护。运行快且内存占用低的非 Playwright 测试可以留在官网仓库；官网当前保留的镜像域名和外部应用商店链接检查均使用 Node.js 原生 HTTP 请求。
+
+迁入测试后先验证原有断言与执行入口，再清理官网中的旧副本；在测试说明或 PR 中记录实际耗时、峰值内存及归属理由。完整要求见 [前端 E2E 规范](https://github.com/kevinanew/laiwan_prd/blob/master/docs/测试与维护仓库.html#frontend-e2e)。
+
 ## 本地运行
 
 ```sh
