@@ -43,7 +43,24 @@ jobs:
           node -e 'const u = new URL(process.env.VISUAL_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
       - run: pnpm install --frozen-lockfile
       - name: 生成待人工审查的动画基准
-        run: /usr/bin/time -v pnpm run reference:ci
+        run: |
+          node <<'NODE'
+          const { spawn } = require('node:child_process');
+          const { readFileSync } = require('node:fs');
+          const started = Date.now();
+          let peak = 0;
+          const sample = setInterval(() => {
+            try { peak = Math.max(peak, Number(readFileSync('/sys/fs/cgroup/memory.current', 'utf8'))); } catch {}
+          }, 100);
+          const child = spawn('pnpm', ['run', 'reference:ci'], { stdio: 'inherit' });
+          child.on('exit', (code) => {
+            clearInterval(sample);
+            console.log(`动画场景耗时 ${(Date.now() - started) / 1000}s，容器内存采样峰值 ${(peak / 1024 / 1024).toFixed(1)}MiB`);
+            process.exitCode = code ?? 1;
+          });
+          NODE
+      - name: 重复比较已生成基准
+        run: pnpm run test:ci
       - uses: actions/upload-artifact@v4
         with:
           name: home-entrance-baselines
