@@ -1,0 +1,52 @@
+name: Prepare home entrance baselines
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - .github/workflows/home-entrance-baselines.yml
+
+permissions:
+  contents: read
+
+jobs:
+  reference:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-jammy
+    defaults:
+      run:
+        working-directory: visual
+    env:
+      CI: 'true'
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      VISUAL_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+      VISUAL_LOCALES: all
+      VISUAL_VIEWPORTS: desktop,mobile
+      VISUAL_FILTER: home_entrance
+      VISUAL_WORKERS: '2'
+      VISUAL_RETRIES: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: visual/pnpm-lock.yaml
+      - name: 隐藏测试站点地址
+        run: |
+          node -e 'const u = new URL(process.env.VISUAL_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
+      - run: pnpm install --frozen-lockfile
+      - name: 生成待人工审查的动画基准
+        run: /usr/bin/time -v pnpm run reference:ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-entrance-baselines
+          path: visual/snapshots/*home-entrance-*.png
+          if-no-files-found: error
+          retention-days: 7

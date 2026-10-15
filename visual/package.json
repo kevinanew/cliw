@@ -4,6 +4,7 @@
     "private": true,
     "description": "Standalone visual regression tests for laiwan_io_web (Playwright)",
     "scripts": {
+        "typecheck:animation": "tsc --project tsconfig.animation.json",
         "test:ci": "node run-visual.js test",
         "test:flake-metrics": "node --test flake-metrics-reporter.test.js",
         "reference:ci": "node run-visual.js reference",

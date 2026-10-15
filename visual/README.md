@@ -26,6 +26,25 @@ VISUAL_BASE_URL=https://example.com VISUAL_LOCALES=zh VISUAL_VIEWPORTS=desktop p
 
 测试使用固定数据拦截 `/apk/index.json`，并为书籍封面准备稳定资源；快照容差为 0.3%。`pnpm run test:scenarios` 验证场景矩阵，`pnpm run test:flake-metrics` 验证重试指标生成器。
 
+## 首页入场动画
+
+`home-entrance.spec.ts` 检查首页公告、标题、副标题、下载入口、版本文字和桌面手机图的分批入场。覆盖简中、繁中、英文的 `desktop` 和 `mobile` 视口，共 6 个场景、36 张基准图；使用现有 `VISUAL_LOCALES`、`VISUAL_VIEWPORTS` 过滤，其他两档视口继续由静态截图覆盖。现有三语言 CI 会自动运行各自的动画场景。
+
+动画测试使用独立准备流程：启用正常动效，在页面创建动画时暂停并归零，等待真实字体和图片加载后，只完成图片加载过渡，其他循环装饰停在固定进度。测试保留生产 CSS 的关键帧、时长和延迟，不调用静态测试中的禁用动画、隐藏视频或移除毛玻璃逻辑。
+
+首先断言页面确实创建了处于运行状态的入场动画、每段持续 800ms、分组延迟为 0/200/400/600ms，并通过已有业务标识确认标题、下载区域、版本文字和手机图的对应关系。然后在统一时间轴的 0、200、400、600、1000、1400ms 比较整页截图，截图选项明确使用 `animations: 'allow'`，避免浏览器测试工具把暂停的动画快进到结束。手机布局不展示宣传手机图，因此少一个入场动画。
+
+只运行首页入场检查：
+
+```sh
+VISUAL_BASE_URL=https://example.com VISUAL_LOCALES=all VISUAL_VIEWPORTS=desktop,mobile VISUAL_FILTER=home_entrance pnpm run test:ci
+pnpm run typecheck:animation
+```
+
+首次建基准或审查设计变更时，在上述固定 Linux Playwright 镜像中用相同过滤条件运行 `pnpm run reference:ci`。逐张审查中间画面后再提交，不能仅因测试失败就更新基准。报告中的步骤名和图片名都包含毫秒时间，便于定位顺序、透明度、位移或缓动变化。
+
+该检查针对入场画面和时间契约，不测真实机器的掉帧率；背景光晕、手机循环悬浮和鼠标视差的运动过程也不在本次覆盖范围内。浏览器测试仍归属 `cliw`，只访问已部署 HTTPS 站点，不构建官网源码。
+
 ## 页面定位契约
 
 视觉场景的业务控件统一按 `data-testid` 定位。配置使用 `readyTestId`、`clickTestId` / `clickTestIds`、
