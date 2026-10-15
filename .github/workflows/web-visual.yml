@@ -49,7 +49,7 @@ jobs:
           node -e 'const u = new URL(process.env.VISUAL_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
       - run: pnpm install --frozen-lockfile
       - name: Check visual scenarios
-        run: pnpm run test:scenarios && pnpm run test:flake-metrics
+        run: pnpm run typecheck:animation && pnpm run test:scenarios && pnpm run test:flake-metrics
       - name: Compare screenshots
         run: pnpm run test:ci
       - name: Upload visual differences
