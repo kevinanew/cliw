@@ -1,11 +1,21 @@
-const { defineConfig } = require('@playwright/test');
+import { defineConfig } from '@playwright/test';
 
 // 对应原 Backstop misMatchThreshold 0.3（允许 0.3% 像素差异）
 const MAX_DIFF_PIXEL_RATIO = 0.003;
 
-module.exports = defineConfig({
+// Playwright 的截图比较会读取此 timeout；独立配置对象保留原有截图超时，
+// 避免将普通断言也延长到 60 秒（当前配置类型未列出截图专属 timeout）。
+const screenshotExpectations = {
+    maxDiffPixelRatio: MAX_DIFF_PIXEL_RATIO,
+    animations: 'disabled',
+    caret: 'hide',
+    scale: 'css',
+    timeout: 60000,
+} as const;
+
+export default defineConfig({
     testDir: '.',
-    testMatch: ['visual.spec.ts', 'home-entrance.spec.ts'],
+    testMatch: ['visual.spec.ts', 'home-entrance.spec.ts', 'animations.spec.ts', 'helpers/motion.test.ts'],
     fullyParallel: true,
     // CI 服务器内存足够时，通过 VISUAL_WORKERS 并行运行截图场景。
     // 本地默认只启用一个 worker，避免占用过多内存。
@@ -24,13 +34,7 @@ module.exports = defineConfig({
     // 固定路径：始终在 Linux Docker / CI 中跑，无需带 platform / project 后缀
     snapshotPathTemplate: 'snapshots/{arg}{ext}',
     expect: {
-        toHaveScreenshot: {
-            maxDiffPixelRatio: MAX_DIFF_PIXEL_RATIO,
-            animations: 'disabled',
-            caret: 'hide',
-            scale: 'css',
-            timeout: 60000,
-        },
+        toHaveScreenshot: screenshotExpectations,
         toMatchSnapshot: {
             maxDiffPixelRatio: MAX_DIFF_PIXEL_RATIO,
         },

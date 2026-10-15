@@ -4,5 +4,12 @@
         "strict": true,
         "types": ["node"]
     },
-    "include": ["home-entrance.spec.ts", "helpers/homeEntrance.ts"]
+    "include": [
+        "playwright.config.ts",
+        "home-entrance.spec.ts",
+        "animations.spec.ts",
+        "helpers/homeEntrance.ts",
+        "helpers/motion.ts",
+        "helpers/motion.test.ts"
+    ]
 }
