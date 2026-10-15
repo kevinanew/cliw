@@ -43,8 +43,14 @@ test.describe('首页分批入场 home_entrance', () => {
                             animations: 'allow',
                             caret: 'hide',
                             scale: 'css',
-                            fullPage: true,
+                            // 整页截图可能临时改变布局并重建响应式区域的动画；首屏使用固定视口。
+                            fullPage: false,
                         });
+                        const times = await page.evaluate(() => document.getAnimations()
+                            .filter((animation) => animation instanceof CSSAnimation && animation.animationName === 'fade-rise')
+                            .map((animation) => animation.currentTime));
+                        expect(times, '截图不能重建或重置入场动画').toHaveLength(viewport.label === 'desktop' ? 7 : 6);
+                        for (const time of times) expect(time).toBeCloseTo(milliseconds, 3);
                         expect(screenshot).toMatchSnapshot(
                             `${locale.code}-${viewport.label}-home-entrance-${milliseconds}ms.png`,
                         );

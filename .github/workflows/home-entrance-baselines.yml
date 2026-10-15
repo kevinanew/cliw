@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - .github/workflows/home-entrance-baselines.yml
+      - visual/home-entrance.spec.ts
+      - visual/helpers/homeEntrance.ts
 
 permissions:
   contents: read
