@@ -1,5 +1,5 @@
 import { test, expect, type Page, type BrowserContext, type Route } from '@playwright/test';
-import { QR_SCREENSHOT_STYLE } from './helpers/homeEntrance';
+import { maskHomeDownloadQr } from './helpers/homeEntrance';
 const { buildScenarios, resolveLocales, LANGUAGE_COOKIE_KEY, MOBILE_USER_AGENT } = require('./scenarios');
 const {
     materializeImagesForScreenshot,
@@ -310,9 +310,9 @@ test.describe('visual regression', () => {
             }
 
             // 先由 helpers 做稳定化，再单次截图对比（避免 toHaveScreenshot 双帧稳定在长页上超时）
+            await maskHomeDownloadQr(page);
             const screenshot = await page.screenshot({
                 fullPage,
-                style: QR_SCREENSHOT_STYLE,
                 animations: 'disabled',
                 caret: 'hide',
                 scale: 'css',

@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { captureHomeAnimations, prepareHomeAssets, QR_SCREENSHOT_STYLE } from './homeEntrance';
+import { captureHomeAnimations, maskHomeDownloadQr, prepareHomeAssets } from './homeEntrance';
 
 const frozenClocks = new WeakSet<Page>();
 
@@ -253,12 +253,12 @@ export async function frame(page: Page, name: string, ids: number[], time: numbe
         clip.width += padding * 2;
         clip.height += padding * 2;
     }
+    await maskHomeDownloadQr(page);
     const screenshot = await page.screenshot({
         animations: 'allow',
         caret: 'hide',
         scale: 'css',
         clip: clip ?? undefined,
-        style: QR_SCREENSHOT_STYLE,
     });
     const states = await page.evaluate(
         /** 核验截图后的原始动画和时间。 */ (selected) => {
