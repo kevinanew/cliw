@@ -1,7 +1,16 @@
 import { expect, type Page } from '@playwright/test';
 
-// 仅隐藏二维码的地址编码，保留二维码的位置、大小和说明文字。
-export const QR_SCREENSHOT_STYLE = 'main:has([data-testid="home-title"]) figure svg path:last-child { visibility: hidden; }';
+/** 隐藏二维码的地址编码，保留截图中的二维码位置、大小和说明文字。
+ * @param page - 截取首页的页面。
+ */
+export async function maskHomeDownloadQr(page: Page): Promise<void> {
+    const payloads = page.locator('main:has([data-testid="home-title"]) figure svg path:last-child');
+    await payloads.evaluateAll(
+        /** 修改呈现属性，避免部署站点的 CSP 拦截注入样式。 */ (paths) => {
+            for (const path of paths) path.setAttribute('fill', 'none');
+        },
+    );
+}
 
 interface CapturedAnimation {
     animation: Animation;
