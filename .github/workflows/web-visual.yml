@@ -57,7 +57,11 @@ jobs:
       - name: 检查视觉场景
         run: pnpm run typecheck:animation && pnpm run test:scenarios && pnpm run test:flake-metrics
       - name: 运行现网其他视觉与功能断言
-        run: pnpm exec playwright test --grep-invert '安卓下载按钮在索引加载前后'
+        env:
+          VISUAL_FILTER: '^(?!.*安卓下载按钮在索引加载前后).*'
+        run: pnpm run test:ci
       - name: 核实已知回归仍由专用断言捕获
         if: always()
-        run: pnpm exec playwright test --grep '安卓下载按钮在索引加载前后'
+        env:
+          VISUAL_FILTER: '安卓下载按钮在索引加载前后'
+        run: pnpm run test:ci
