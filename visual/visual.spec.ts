@@ -1,6 +1,6 @@
 import { test, expect, type Page, type BrowserContext, type Route } from '@playwright/test';
 import { QR_SCREENSHOT_STYLE } from './helpers/homeEntrance';
-const { buildScenarios, LANGUAGE_COOKIE_KEY, MOBILE_USER_AGENT } = require('./scenarios');
+const { buildScenarios, resolveLocales, LANGUAGE_COOKIE_KEY, MOBILE_USER_AGENT } = require('./scenarios');
 const {
     materializeImagesForScreenshot,
     prepareBeforeNavigate,
@@ -632,40 +632,42 @@ test.describe('homepage responsive breakpoint styles', () => {
         expect(qrBounds!.x + qrBounds!.width).toBeLessThanOrEqual(801);
     });
 
-    for (const width of [801, 820]) {
-        test(`${width}px keeps the local download control stationary while the APK index is loading`, async ({
-            page,
-            context,
-        }) => {
-            let releaseApkResponse;
-            const apkResponseGate = new Promise((resolve) => {
-                releaseApkResponse = resolve;
-            });
-
-            await openHomepageAtBreakpoint(page, context, width, 'en', 900, async (route) => {
-                await apkResponseGate;
-                await route.fulfill({
-                    contentType: 'application/json',
-                    body: JSON.stringify(APK_INDEX_FIXTURE),
+    for (const { code: locale } of resolveLocales()) {
+        for (const width of [801, 820]) {
+            test(`${locale} ${width}px 的安卓下载按钮在索引加载前后保持位置和尺寸`, async ({ page, context }) => {
+                let releaseApkResponse!: () => void;
+                const apkResponseGate = new Promise<void>((resolve) => {
+                    releaseApkResponse = resolve;
                 });
+
+                await openHomepageAtBreakpoint(page, context, width, locale, 900, async (route) => {
+                    await apkResponseGate;
+                    await route.fulfill({
+                        contentType: 'application/json',
+                        body: JSON.stringify(APK_INDEX_FIXTURE),
+                    });
+                });
+
+                const localDownloadControl = page.getByTestId('download-button-icon-link');
+                const qr = page.locator('main figure svg');
+                await expect(localDownloadControl).toHaveAttribute('aria-disabled', 'true');
+                await expect(qr).toBeHidden();
+                const loadingBounds = await localDownloadControl.boundingBox();
+
+                releaseApkResponse();
+                // APK 响应后 React 会把 span 替换为 a，等待新链接才能读取加载后的尺寸。
+                const loadedControl = page.locator('a[data-testid="download-button-icon-link"]');
+                await expect(loadedControl).toBeVisible();
+                await expect(loadedControl).toHaveAttribute('href', /\.apk$/);
+                await expect(qr).toBeVisible();
+                const loadedBounds = await loadedControl.boundingBox();
+                expect(loadingBounds).not.toBeNull();
+                expect(loadedBounds).not.toBeNull();
+                for (const coordinate of ['x', 'y', 'width', 'height'] as const) {
+                    expect(loadedBounds![coordinate]).toBeCloseTo(loadingBounds![coordinate], 1);
+                }
             });
-
-            const localDownloadControl = page.getByTestId('download-button-icon-link');
-            await expect(localDownloadControl).toHaveAttribute('aria-disabled', 'true');
-            const loadingBounds = await localDownloadControl.boundingBox();
-
-            releaseApkResponse();
-            // APK 响应后 React 会把 span 替换为 a；必须等待新链接，避免读到正在卸载的旧节点。
-            const loadedControl = page.locator('a[data-testid="download-button-icon-link"]');
-            await expect(loadedControl).toBeVisible();
-            await expect(loadedControl).toHaveAttribute('href', /\.apk$/);
-            const loadedBounds = await loadedControl.boundingBox();
-            expect(loadingBounds).not.toBeNull();
-            expect(loadedBounds).not.toBeNull();
-            for (const coordinate of ['x', 'y', 'width', 'height'] as const) {
-                expect(loadedBounds![coordinate]).toBeCloseTo(loadingBounds![coordinate], 1);
-            }
-        });
+        }
     }
 });
 
