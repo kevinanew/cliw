@@ -1,27 +1,19 @@
-name: Web visual regression
+name: 首页视觉基准验证
 
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
-  workflow_dispatch:
-  schedule:
-    - cron: '30 20 * * *'
+    branches: [temp/laiwan-home-visual-generator]
 
 permissions:
   contents: read
 
 jobs:
   visual:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    name: Visual (${{ matrix.locale }})
+    if: github.repository == 'kevinanew/cliw' && github.actor == 'kevinanew'
     runs-on: ubuntu-latest
-    timeout-minutes: 240
-    strategy:
-      fail-fast: false
-      matrix:
-        locale: [zh, zh-TW, en]
+    timeout-minutes: 30
+    permissions:
+      contents: write
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-jammy
     defaults:
@@ -31,35 +23,44 @@ jobs:
       CI: 'true'
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       VISUAL_BASE_URL: ${{ secrets.E2E_BASE_URL }}
-      VISUAL_LOCALES: ${{ matrix.locale }}
-      VISUAL_VIEWPORTS: desktop,small-desktop,mobile,pixel-9
+      VISUAL_LOCALES: all
+      VISUAL_VIEWPORTS: all
       VISUAL_WORKERS: '4'
+      VISUAL_RETRIES: '0'
+      VISUAL_FILTER: '_homepage|_home_entrance|首页装饰保持静止|按钮扫光与悬停复位|iOS 加载与弹窗|小屋内的应用预览渐显|只有宽屏前景牌桌响应鼠标|路由进度条与圆环|汉堡按钮开合|减少动态效果'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
           version: 11.13.0
+          cache: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: visual/pnpm-lock.yaml
-      - name: Mask target host in logs
+      - name: 确认 staging 为已审核的首页版本
         run: |
-          node -e 'const u = new URL(process.env.VISUAL_BASE_URL); console.log(`::add-mask::${u.hostname}`); console.log(`::add-mask::${u.origin}`)'
+          node --input-type=module <<'NODE'
+          const url = new URL(process.env.VISUAL_BASE_URL);
+          console.log('::add-mask::' + url.origin);
+          console.log('::add-mask::' + url.hostname);
+          const response = await fetch(url);
+          const html = await response.text();
+          if (!response.ok || !html.includes('staging - 1b66065 - ')) {
+            throw new Error('staging 版本已变化，停止生成首页基准');
+          }
+          NODE
       - run: pnpm install --frozen-lockfile
-      - name: Check visual scenarios
-        run: pnpm run typecheck:animation && pnpm run test:scenarios && pnpm run test:flake-metrics
-      - name: Compare screenshots
+      - run: pnpm run typecheck:animation
+      - name: 生成受改版影响的画面
+        run: pnpm run approve:ci
+      - name: 用生成的画面重新比较
         run: pnpm run test:ci
-      - name: Upload visual differences
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: visual-regression-${{ matrix.locale }}
-          path: |
-            visual/playwright-report/
-            visual/test-results/
-            visual/visual-retry-metrics.json
-          if-no-files-found: ignore
-          retention-days: 7
+      - name: 保存待人工审阅的基准
+        run: |
+          git add -- snapshots
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com \
+            commit -m '测试: 为已确认的首页设计生成候选视觉基准'
+          git push origin HEAD:refs/heads/temp/laiwan-home-visual-generator
