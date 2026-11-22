@@ -30,45 +30,11 @@ for (const locale of resolveLocales()) {
                 },
             );
 
-            test('首页循环光效与悬浮', /** 验证所有持续关键帧及错开的扩散光环。 */ async ({ page }) => {
+            test('首页装饰保持静止', /** 已确认的首页使用静态素材。 */ async ({ page }) => {
                 await openHome(page);
-                const contracts: [string, number, number][] = [
-                    ['orb-drift-a', 18000, 1],
-                    ['orb-drift-b', 22000, 1],
-                    ['orb-drift-c', 26000, 1],
-                    ['glow-pulse', 5000, 1],
-                    ['glow-pulse-soft', 6000, 1],
-                    ...(desktop
-                        ? ([
-                              ['float-bob', 5500, 1],
-                              ['shadow-breath', 5000, 1],
-                              ['wave', 5500, 3],
-                          ] as [string, number, number][])
-                        : []),
-                ];
-                const ids: number[] = [];
-                for (const [name, duration, count] of contracts) {
-                    // CSS Modules 的生产动画名为哈希；使用时长与属性组合定位，再检查数量和运行状态。
-                    const keyframeProperty = name.startsWith('glow')
-                        ? 'textShadow'
-                        : name === 'wave'
-                          ? 'width'
-                          : 'transform';
-                    ids.push(...(await requireMotion(page, { duration, keyframeProperty }, duration, count)));
-                }
-                const loops = (await motions(page)).filter(
-                    /** 读取所测循环的时间契约。 */ (motion) => ids.includes(motion.id),
-                );
-                for (const loop of loops) expect(loop.iterations).toBe(Infinity);
-                if (desktop)
-                    expect(
-                        (await motions(page, { keyframeProperty: 'width' }))
-                            .map(/** 读取光环延迟。 */ (motion) => motion.delay)
-                            .sort(),
-                    ).toEqual([0, 1000, 3000]);
-                for (const time of [0, 2750, 5225, 5500, 13000]) {
-                    await frame(page, `${prefix}-ambient-${time}ms`, ids, time);
-                }
+                await expect(page.locator('main img[fetchpriority="high"]')).toBeVisible();
+                await expect(page.locator('main + [aria-hidden="true"] img')).toBeVisible();
+                expect((await motions(page)).filter((motion) => motion.iterations === Infinity)).toEqual([]);
             });
 
             test('按钮扫光与悬停复位', /** 同时覆盖下载按钮和 H5 按钮的两套扫光实现。 */ async ({ page }) => {
@@ -203,91 +169,67 @@ for (const locale of resolveLocales()) {
                 for (const time of [0, 125, 250]) await frame(page, `${prefix}-definition-${time}ms`, ids, time);
             });
 
-            test('背景和手机图渐显', /** 延迟高清图片，比较占位图、交叉渐显和清晰图。 */ async ({ page }) => {
+            test('小屋内的应用预览渐显', /** 延迟应用截图并验证占位图交叉渐显。 */ async ({ page }) => {
                 const probe = await page.context().newPage();
                 await probe.goto('/');
-                await expect(probe.getByTestId('blur-up-full')).toHaveAttribute('data-loaded', 'true');
-                await expect(probe.getByTestId('home-background-image')).toHaveAttribute('data-loaded', 'true');
-                const imageUrls = await probe
-                    .getByTestId(/^(home-background-image|blur-up-full)$/)
-                    .evaluateAll(
-                        /** 从真实业务标识读取构建后的资源地址。 */ (images) =>
-                            images.map(
-                                /** 优先使用浏览器选中的图片格式。 */ (image) =>
-                                    (image as HTMLImageElement).currentSrc || (image as HTMLImageElement).src,
-                            ),
-                    );
+                const image = probe.getByTestId('blur-up-full');
+                await expect(image).toHaveAttribute('data-loaded', 'true');
+                const imageUrl = await image.evaluate((element: HTMLImageElement) => element.currentSrc);
                 await probe.close();
-                const gate = await holdRequests(
-                    page,
-                    /** 仅阻塞高清图，保留模糊占位图。 */ (url) => imageUrls.includes(url.href),
-                );
+                const gate = await holdRequests(page, (url) => url.href === imageUrl);
                 try {
                     await page.goto('/', { waitUntil: 'domcontentloaded' });
                     await expect(page.getByTestId('home-title')).toBeVisible();
-                    await expect(page.getByTestId('home-background-image')).toHaveAttribute('data-loaded', 'false');
                     await expect(page.getByTestId('blur-up-full')).toHaveAttribute('data-loaded', 'false');
-                    await readyAssets(page, ['home-background-image', 'blur-up-full']);
+                    await readyAssets(page, ['blur-up-full']);
                     await finishFinite(page);
                     expect(gate.count()).toBeGreaterThan(0);
-                    await frame(page, `${prefix}-images-placeholder`, [], 0);
+                    await frame(page, prefix + '-images-placeholder', [], 0);
                     gate.release();
-                    await expect(page.getByTestId('home-background-image')).toHaveAttribute('data-loaded', 'true');
                     await expect(page.getByTestId('blur-up-full')).toHaveAttribute('data-loaded', 'true');
                     await readyAssets(page);
                     const ids: number[] = [];
-                    for (const testId of [
-                        'home-background-image',
-                        'home-background-placeholder',
-                        ...(desktop ? ['blur-up-full', 'blur-up-placeholder'] : []),
-                    ]) {
-                        ids.push(
-                            ...(await requireMotion(
-                                page,
-                                { within: testId, property: 'opacity' },
-                                testId.startsWith('home-') ? 550 : 450,
-                            )),
-                        );
+                    for (const testId of ['blur-up-full', 'blur-up-placeholder']) {
+                        ids.push(...(await requireMotion(page, { within: testId, property: 'opacity' }, 450)));
                     }
-                    for (const time of [0, 225, 549]) await frame(page, `${prefix}-images-fade-${time}ms`, ids, time);
+                    for (const time of [0, 225, 449]) await frame(page, prefix + '-images-fade-' + time + 'ms', ids, time);
                 } finally {
                     gate.release();
                 }
             });
 
-            test('鼠标视差与离开复位', /** 检查真实鼠标事件驱动的背景和手机变换。 */ async ({ page }) => {
+            test('只有宽屏前景牌桌响应鼠标', /** 核对横移范围、内容位置和离开窗口复位。 */ async ({ page }) => {
                 await openHome(page);
-                for (const [label, x, y] of [
-                    ['top-left', 10, 100],
-                    ['bottom-right', viewport.width - 10, viewport.height - 10],
-                ] as const) {
-                    await page.mouse.move(x, y);
+                const table = page.locator('main + [aria-hidden="true"] img');
+                const house = page.locator('main img[fetchpriority="high"]');
+                const buttons = page.getByTestId('h5-download-method');
+                const initialHouse = await house.boundingBox();
+                const initialButtons = await buttons.boundingBox();
+                for (const [label, x] of [['left', 10], ['right', viewport.width - 10]] as const) {
+                    await page.mouse.move(x, viewport.height - 10);
                     await paint(page);
-                    const ids = await requireMotion(
-                        page,
-                        { within: 'home-background-image', property: 'transform' },
-                        500,
-                    );
-                    await expect(page.getByTestId('home-background-image')).toHaveAttribute(
-                        'style',
-                        /translate3d\((?!0\.00px, 0\.00px)/,
-                    );
-                    for (const time of [250, 499])
-                        await frame(page, `${prefix}-parallax-${label}-${time}ms`, ids, time);
+                    if (desktop) {
+                        const target = await table.evaluate((image: HTMLImageElement) => image.style.transform);
+                        expect(target).toMatch(/^translateX\(/);
+                        expect(Number.parseFloat(target.slice('translateX('.length))).toBeCloseTo((x / viewport.width - 0.5) * 12, 4);
+                        const ids = await requireMotion(page, { property: 'transform' }, 300);
+                        for (const time of [150, 299])
+                            await frame(page, prefix + '-table-' + label + '-' + time + 'ms', ids, time);
+                        await finishFinite(page);
+                    } else {
+                        await expect(table).toHaveCSS('transform', 'none');
+                    }
+                    expect(await house.boundingBox()).toEqual(initialHouse);
+                    expect(await buttons.boundingBox()).toEqual(initialButtons);
+                }
+                await page.evaluate(() => window.dispatchEvent(new MouseEvent('mouseout', { relatedTarget: null })));
+                await paint(page);
+                if (desktop) {
+                    const ids = await requireMotion(page, { property: 'transform' }, 300);
+                    await frame(page, prefix + '-table-reset-150ms', ids, 150);
                     await finishFinite(page);
                 }
-                await page.evaluate(
-                    /** 模拟鼠标离开浏览器窗口，触发真实业务复位监听器。 */ () =>
-                        window.dispatchEvent(new MouseEvent('mouseout', { relatedTarget: null })),
-                );
-                await paint(page);
-                const ids = await requireMotion(page, { within: 'home-background-image', property: 'transform' }, 500);
-                await frame(page, `${prefix}-parallax-reset-250ms`, ids, 250);
-                await finishFinite(page);
-                await expect(page.getByTestId('home-background-image')).toHaveCSS(
-                    'transform',
-                    'matrix(1.06, 0, 0, 1.06, 0, 0)',
-                );
+                await expect(table).toHaveCSS('transform', 'none');
             });
 
             test('学习页卡片、评分与下载反馈', /** 覆盖卡片浮起、评分提示渐显及下载按钮变色。 */ async ({ page }) => {
@@ -557,11 +499,11 @@ for (const locale of resolveLocales()) {
                     ),
                 ).toEqual([]);
                 const before = await page
-                    .getByTestId('home-background-image')
+                    .locator('main + [aria-hidden="true"] img')
                     .evaluate(/** 读取静态背景变换。 */ (element) => getComputedStyle(element).transform);
                 await page.mouse.move(viewport.width - 1, viewport.height - 1);
                 await paint(page);
-                await expect(page.getByTestId('home-background-image')).toHaveCSS('transform', before);
+                await expect(page.locator('main + [aria-hidden="true"] img')).toHaveCSS('transform', before);
                 await frame(page, `${prefix}-reduced-home`, [], 0);
                 await page.getByTestId('ios-download-trigger').click();
                 await expect(page.getByTestId('ios-download-modal')).toBeVisible();
