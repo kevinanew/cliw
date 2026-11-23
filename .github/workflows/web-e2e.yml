@@ -32,8 +32,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: e2e/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - name: Unit tests
@@ -54,13 +52,6 @@ jobs:
         run: |
           pnpm run e2e:wait
           pnpm run e2e:functional
-      - name: Upload functional reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: functional-staging
-          path: e2e/reports/
-          if-no-files-found: ignore
 
   lighthouse:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -79,8 +70,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: e2e/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - name: Mask target host in logs
@@ -92,10 +81,3 @@ jobs:
         env:
           E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
         run: pnpm run e2e:lhci
-      - name: Upload Lighthouse reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lighthouse-staging
-          path: e2e/ci-artifacts/lighthouse/
-          if-no-files-found: ignore

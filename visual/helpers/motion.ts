@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { captureHomeAnimations, prepareHomeAssets } from './homeEntrance';
+import { captureHomeAnimations, maskHomeDownloadQr, prepareHomeAssets } from './homeEntrance';
 
 const frozenClocks = new WeakSet<Page>();
 
@@ -104,7 +104,7 @@ export async function readyAssets(page: Page, excludedImages: string[] = []) {
 }
 
 /**
- * 打开首页并完成资源渐显、分批入场，循环动画保持零时刻。
+ * 打开首页并等待首屏资源就绪。
  * @param page - 已安装动画捕获器的页面
  */
 export async function openHome(page: Page) {
@@ -253,6 +253,7 @@ export async function frame(page: Page, name: string, ids: number[], time: numbe
         clip.width += padding * 2;
         clip.height += padding * 2;
     }
+    await maskHomeDownloadQr(page);
     const screenshot = await page.screenshot({
         animations: 'allow',
         caret: 'hide',

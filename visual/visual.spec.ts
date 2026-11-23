@@ -1,5 +1,6 @@
 import { test, expect, type Page, type BrowserContext, type Route } from '@playwright/test';
-const { buildScenarios, LANGUAGE_COOKIE_KEY, MOBILE_USER_AGENT } = require('./scenarios');
+import { maskHomeDownloadQr } from './helpers/homeEntrance';
+const { buildScenarios, resolveLocales, LANGUAGE_COOKIE_KEY, MOBILE_USER_AGENT } = require('./scenarios');
 const {
     materializeImagesForScreenshot,
     prepareBeforeNavigate,
@@ -309,6 +310,7 @@ test.describe('visual regression', () => {
             }
 
             // 先由 helpers 做稳定化，再单次截图对比（避免 toHaveScreenshot 双帧稳定在长页上超时）
+            await maskHomeDownloadQr(page);
             const screenshot = await page.screenshot({
                 fullPage,
                 animations: 'disabled',
@@ -601,85 +603,71 @@ test.describe('homepage responsive breakpoint styles', () => {
         });
     }
 
-    test('800px applies responsive H5 typography and two-column spacing', async ({ page, context }) => {
+    test('800px 的 H5 入口等宽且二维码对窄屏隐藏', async ({ page, context }) => {
         await openHomepageAtBreakpoint(page, context, 800);
-
-        const styles = await page.evaluate(() => {
-            const downloadMethod = document.querySelector('[data-testid="h5-download-method"]');
-            const blocks = Array.from(document.querySelectorAll('[data-testid="h5-version-block"]'));
-            const title = getComputedStyle(document.querySelector('[data-testid="h5-button-title"]'));
-            const subtitle = getComputedStyle(document.querySelector('[data-testid="h5-button-subtitle"]'));
-            const tutorial = getComputedStyle(document.querySelector('[data-testid="h5-tutorial-text"]'));
-            const downloadStyles = getComputedStyle(downloadMethod);
-            const blockRects = blocks.map((block) => block.getBoundingClientRect());
-
-            return {
-                titleFontSize: title.fontSize,
-                titleLineHeight: title.lineHeight,
-                subtitleFontSize: subtitle.fontSize,
-                subtitleLineHeight: subtitle.lineHeight,
-                tutorialFontSize: tutorial.fontSize,
-                maxWidth: downloadStyles.maxWidth,
-                columnGap: downloadStyles.columnGap,
-                containerWidth: downloadMethod.getBoundingClientRect().width,
-                blockWidths: blockRects.map((rect) => rect.width),
-                renderedGap: blockRects[1].left - blockRects[0].right,
-            };
-        });
-
-        expect(styles).toMatchObject({
-            titleFontSize: '11.25px',
-            titleLineHeight: '10.8px',
-            subtitleFontSize: '8.1px',
-            subtitleLineHeight: '9.315px',
-            tutorialFontSize: '8.1px',
-            maxWidth: '100%',
-            columnGap: '9px',
-        });
-        expect(styles.blockWidths).toHaveLength(2);
-        styles.blockWidths.forEach((width) => {
-            expect(width).toBeCloseTo((styles.containerWidth - 9) / 2, 1);
-        });
-        expect(styles.renderedGap).toBeCloseTo(9, 1);
+        const downloadGroup = page.getByTestId('h5-download-method');
+        await expect(page.getByTestId('download-button-icon-link')).toHaveAttribute('href', /\.apk$/);
+        await expect(page.locator('main figure')).toBeHidden();
+        const columns = await downloadGroup.getByTestId('h5-version-block').evaluateAll((blocks) =>
+            blocks.map((block) => block.getBoundingClientRect().toJSON()),
+        );
+        expect(columns).toHaveLength(2);
+        expect(columns[0].width).toBeCloseTo(columns[1].width, 1);
+        expect(columns[1].x - columns[0].right).toBeCloseTo(8, 1);
+        expect(columns[0].x).toBeGreaterThanOrEqual(0);
+        expect(columns[1].right).toBeLessThanOrEqual(800);
+        await expect(downloadGroup.getByTestId('h5-button-subtitle').first()).toHaveCSS('font-size', '10px');
     });
 
-    test('801px keeps the H5 download group capped at its desktop width', async ({ page, context }) => {
+    test('801px 的桌面布局在 H5 入口右侧显示安卓二维码', async ({ page, context }) => {
         await openHomepageAtBreakpoint(page, context, 801);
-
-        await expect(page.getByTestId('h5-download-method')).toHaveCSS('max-width', '612px');
+        const qr = page.locator('main figure svg');
+        await expect(qr).toBeVisible();
+        await expect(qr.locator('path').last()).toHaveAttribute('d', /^M/);
+        const qrBounds = await qr.boundingBox();
+        const downloadBounds = await page.getByTestId('h5-download-method').boundingBox();
+        expect(qrBounds).not.toBeNull();
+        expect(downloadBounds).not.toBeNull();
+        expect(qrBounds!.x).toBeGreaterThan(downloadBounds!.x + downloadBounds!.width);
+        expect(qrBounds!.x + qrBounds!.width).toBeLessThanOrEqual(801);
     });
 
-    for (const width of [801, 820]) {
-        test(`${width}px keeps the local download control stationary while the APK index is loading`, async ({
-            page,
-            context,
-        }) => {
-            let releaseApkResponse;
-            const apkResponseGate = new Promise((resolve) => {
-                releaseApkResponse = resolve;
-            });
-
-            await openHomepageAtBreakpoint(page, context, width, 'en', 900, async (route) => {
-                await apkResponseGate;
-                await route.fulfill({
-                    contentType: 'application/json',
-                    body: JSON.stringify(APK_INDEX_FIXTURE),
+    for (const { code: locale } of resolveLocales()) {
+        for (const width of [801, 820]) {
+            test(`${locale} ${width}px 的安卓下载按钮在索引加载前后保持位置和尺寸`, async ({ page, context }) => {
+                let releaseApkResponse!: () => void;
+                const apkResponseGate = new Promise<void>((resolve) => {
+                    releaseApkResponse = resolve;
                 });
+
+                await openHomepageAtBreakpoint(page, context, width, locale, 900, async (route) => {
+                    await apkResponseGate;
+                    await route.fulfill({
+                        contentType: 'application/json',
+                        body: JSON.stringify(APK_INDEX_FIXTURE),
+                    });
+                });
+
+                const localDownloadControl = page.getByTestId('download-button-icon-link');
+                const qr = page.locator('main figure svg');
+                await expect(localDownloadControl).toHaveAttribute('aria-disabled', 'true');
+                await expect(qr).toBeHidden();
+                const loadingBounds = await localDownloadControl.boundingBox();
+
+                releaseApkResponse();
+                // APK 响应后 React 会把 span 替换为 a，等待新链接才能读取加载后的尺寸。
+                const loadedControl = page.locator('a[data-testid="download-button-icon-link"]');
+                await expect(loadedControl).toBeVisible();
+                await expect(loadedControl).toHaveAttribute('href', /\.apk$/);
+                await expect(qr).toBeVisible();
+                const loadedBounds = await loadedControl.boundingBox();
+                expect(loadingBounds).not.toBeNull();
+                expect(loadedBounds).not.toBeNull();
+                for (const coordinate of ['x', 'y', 'width', 'height'] as const) {
+                    expect(loadedBounds![coordinate]).toBeCloseTo(loadingBounds![coordinate], 1);
+                }
             });
-
-            const localDownloadControl = page.getByTestId('download-button-icon-link');
-            await expect(localDownloadControl).toHaveAttribute('aria-disabled', 'true');
-            const loadingLeft = await localDownloadControl.evaluate((element) => element.getBoundingClientRect().x);
-
-            releaseApkResponse();
-            // APK 响应后 React 会把 span 替换为 a；必须等待新链接，避免读到正在卸载的旧节点。
-            const loadedControl = page.locator('a[data-testid="download-button-icon-link"]');
-            await expect(loadedControl).toBeVisible();
-            await expect(loadedControl).toHaveAttribute('href', /\.apk$/);
-            const loadedLeft = await loadedControl.evaluate((element) => element.getBoundingClientRect().x);
-
-            expect(loadedLeft).toBeCloseTo(loadingLeft, 1);
-        });
+        }
     }
 });
 
